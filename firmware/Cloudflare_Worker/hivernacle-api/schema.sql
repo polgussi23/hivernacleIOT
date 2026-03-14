@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS lectures;
+CREATE TABLE lectures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+    temp REAL,
+    hum REAL,
+    llum REAL,
+    sol_pct INTEGER
+);

@@ -1,32 +1,375 @@
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
-	</head>
-	<body>
-		<h1 id="heading"></h1>
-		<p>This page comes from a static asset stored at `public/index.html` as configured in `wrangler.jsonc`.</p>
-		<button id="button" type="button">Fetch a random UUID</button>
-		<output id="random" for="button"></output>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
-				});
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hivernacle IoT - Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #27ae60; --bg: #f4f7f6; --card: #ffffff; --text: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
+        /* LOGIN STYLES */
+        #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: var(--card); padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px; }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #219150; }
+        
+        /* DASHBOARD STYLES */
+        #dashboard { display: none; max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        
+        .card { background: var(--card); padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .sensor-val { font-size: 2.5em; font-weight: bold; color: var(--primary); }
+        .sensor-label { color: #7f8c8d; font-size: 0.9em; }
 
-			const button = document.getElementById("button");
-			button.addEventListener("click", () => {
-				fetch('/random')
-					.then((resp) => resp.text())
-					.then((text) => {
-						const random = document.getElementById('random');
-						random.textContent = text;
-					});
-			});
-		</script>
-	</body>
+        /* CONTROL PANEL */
+        .control-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .manual-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .manual-btn { background: #95a5a6; }
+        .manual-btn.active { background: #e67e22; box-shadow: 0 0 10px rgba(230, 126, 34, 0.5); }
+        
+        /* Inputs petits */
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .settings-grid label { font-size: 0.8em; font-weight: bold; }
+        
+        /* UTILS */
+        .hidden { display: none; }
+        .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .online { background-color: #27ae60; }
+        .offline { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>🌱 Accés Hivernacle</h2>
+            <input type="text" id="dev-id" placeholder="ID Dispositiu (ex: GH_POL)">
+            <input type="password" id="dev-pass" placeholder="Contrasenya">
+            <button onclick="ferLogin()">Entrar</button>
+            <p id="login-error" style="color: red; display: none;">Error de credencials</p>
+        </div>
+    </div>
+
+    <div id="dashboard">
+        <div class="header">
+            <h3>Hola, <span id="user-name">Usuari</span> <span id="conn-status" style="font-size: 0.6em; color: grey;">(Check...)</span></h3>
+            <button onclick="logout()" style="width: auto; background: #c0392b;">Sortir</button>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="sensor-label">Temperatura</div>
+                <div class="sensor-val"><span id="val-temp">--</span>ºC</div>
+            </div>
+            <div class="card">
+                <div class="sensor-label">Humitat Aire</div>
+                <div class="sensor-val"><span id="val-hum">--</span>%</div>
+            </div>
+            <div class="card">
+                <div class="sensor-label">Humitat Sòl</div>
+                <div class="sensor-val"><span id="val-soil">--</span>%</div>
+            </div>
+            <div class="card">
+                <div class="sensor-label">Llum</div>
+                <div class="sensor-val"><span id="val-light">--</span>%</div>
+            </div>
+        </div>
+
+        <br>
+
+        <div class="grid">
+            <div class="card" style="grid-column: span 2;">
+                <h3>⚙️ Configuració del Cultiu</h3>
+                
+                <div class="control-group">
+                    <label>📚 Biblioteca de Plantes:</label>
+                    <select id="plant-selector" onchange="carregarPlantaPredefinida()">
+                        <option value="Personalitzat">-- Personalitzat / Manual --</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>🤖 Mode de Control:</label>
+                    <select id="mode-selector" onchange="toggleManualControls()">
+                        <option value="AUTO">AUTOMÀTIC (Intel·ligent)</option>
+                        <option value="MANUAL">MANUAL (Control Directe)</option>
+                    </select>
+                </div>
+
+                <div id="auto-settings" class="settings-grid">
+                    <div>
+                        <label>Temp. Mínima (ºC)</label>
+                        <input type="number" id="set-tmin">
+                    </div>
+                    <div>
+                        <label>Temp. Màxima (ºC)</label>
+                        <input type="number" id="set-tmax">
+                    </div>
+                    <div>
+                        <label>Mínim Humitat Sòl (%)</label>
+                        <input type="number" id="set-soil">
+                    </div>
+                    <div>
+                        <label>Hores Llum (On/Off)</label>
+                        <div style="display: flex; gap: 5px;">
+                            <input type="time" id="set-lon">
+                            <input type="time" id="set-loff">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="manual-controls" class="control-group hidden">
+                    <p style="font-size: 0.8em; color: orange;">⚠️ En mode MANUAL l'hivernacle no es regula sol.</p>
+                    <div class="manual-btns">
+                        <button id="btn-fan" class="manual-btn" onclick="toggleManual('fan')">💨 Ventilador</button>
+                        <button id="btn-pump" class="manual-btn" onclick="toggleManual('pump')">💧 Bomba</button>
+                        <button id="btn-light" class="manual-btn" onclick="toggleManual('light')">💡 Llums</button>
+                    </div>
+                </div>
+
+                <button onclick="guardarCanvis()" style="margin-top: 20px;">💾 Guardar Configuració</button>
+            </div>
+
+            <div class="card" style="grid-column: span 1;">
+                <h3>📈 Històric (Últimes 50 lectures)</h3>
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dades globals
+        let CREDENTIALS = { id: '', pass: '' };
+        let ALL_PLANTS = [];
+        let MANUAL_STATE = { fan: false, pump: false, light: false };
+        let chartInstance = null;
+
+        // 1. INICIALITZACIÓ
+        window.onload = async () => {
+            const storedId = localStorage.getItem('gh_id');
+            const storedPass = localStorage.getItem('gh_pass');
+
+            if(storedId && storedPass) {
+                CREDENTIALS.id = storedId;
+                CREDENTIALS.pass = storedPass;
+                await iniciarDashboard();
+            }
+        };
+
+        // 2. LOGICA DE LOGIN
+        async function ferLogin() {
+            const id = document.getElementById('dev-id').value;
+            const pass = document.getElementById('dev-pass').value;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ device_id: id, password: pass })
+                });
+
+                if(res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('gh_id', id);
+                    localStorage.setItem('gh_pass', pass);
+                    CREDENTIALS = { id, pass };
+                    await iniciarDashboard();
+                } else {
+                    document.getElementById('login-error').style.display = 'block';
+                }
+            } catch (e) { alert("Error de connexió"); }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // 3. CARREGAR PANELL
+        async function iniciarDashboard() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            
+            // Carregar llista de plantes
+            await carregarLlistaPlantes();
+
+            // Primer refresc de dades
+            refreshData();
+            
+            // Refresc automàtic cada 5 segons
+            setInterval(refreshData, 5000);
+        }
+
+        async function carregarLlistaPlantes() {
+            const res = await fetch('/api/plants');
+            ALL_PLANTS = await res.json();
+            const selector = document.getElementById('plant-selector');
+            ALL_PLANTS.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.nom;
+                opt.innerText = p.nom;
+                selector.appendChild(opt);
+            });
+        }
+
+        // 4. OBTENIR DADES (Polling)
+        async function refreshData() {
+            try {
+                const res = await fetch('/api/status', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass })
+                });
+
+                if(!res.ok) return; // Si falla (ex: auth canviada), no fem res
+
+                const data = await res.json();
+                actualitzarUI(data);
+                actualitzarGrafica(data.historic);
+            } catch (e) { console.error(e); }
+        }
+
+        function actualitzarUI(data) {
+            const lect = data.lectura || {};
+            const conf = data.estat || {};
+
+            // Header
+            document.getElementById('user-name').innerText = conf.propietari;
+            
+            // Check Online (si fa menys de 2 minuts)
+            const lastSeen = new Date(conf.ultima_connexio);
+            const now = new Date();
+            const diffMin = (now - lastSeen) / 1000 / 60;
+            const statusSpan = document.getElementById('conn-status');
+            if(diffMin < 2) statusSpan.innerHTML = '<span class="status-dot online"></span>Online';
+            else statusSpan.innerHTML = '<span class="status-dot offline"></span>Offline (' + Math.round(diffMin) + 'm)';
+
+            // Sensors
+            document.getElementById('val-temp').innerText = lect.temp?.toFixed(1) || '--';
+            document.getElementById('val-hum').innerText = lect.hum?.toFixed(1) || '--';
+            document.getElementById('val-soil').innerText = lect.hum_sol || '--';
+            document.getElementById('val-light').innerText = lect.llum?.toFixed(0) || '--';
+
+            // Inputs (Només si l'usuari NO està escrivint en ells actualment podriem bloquejar, 
+            // però per simplificar només ho actualitzem si és el primer cop o canvia el mode)
+            // NOTA: Per no molestar a l'usuari mentre edita, podriem no actualitzar els inputs constantment.
+            // Aquí només actualitzem l'estat dels botons manuals.
+            
+            // Actualitzem estat botons manuals
+            MANUAL_STATE = { fan: !!conf.manual_fan, pump: !!conf.manual_pump, light: !!conf.manual_light };
+            updateManualButtonsVisuals();
+            
+            // Actualitzem selector mode només si no estem editant
+            if(document.activeElement.tagName !== "SELECT") {
+               document.getElementById('mode-selector').value = conf.mode_operacio;
+               toggleManualControls(); 
+            }
+        }
+
+        // 5. GESTIÓ CONFIGURACIÓ
+        function carregarPlantaPredefinida() {
+            const nomPlanta = document.getElementById('plant-selector').value;
+            const planta = ALL_PLANTS.find(p => p.nom === nomPlanta);
+            
+            if(planta) {
+                document.getElementById('set-tmin').value = planta.temp_min;
+                document.getElementById('set-tmax').value = planta.temp_max;
+                document.getElementById('set-soil').value = planta.hum_sol_min;
+                // Calcul aproximat hores (ex: 14h -> 8:00 a 22:00)
+                document.getElementById('set-lon').value = "08:00"; 
+                const endHour = 8 + planta.llum_diaria_hores;
+                document.getElementById('set-loff').value = (endHour > 23 ? endHour-24 : endHour) + ":00";
+            }
+        }
+
+        function toggleManualControls() {
+            const mode = document.getElementById('mode-selector').value;
+            const manualPanel = document.getElementById('manual-controls');
+            const autoPanel = document.getElementById('auto-settings');
+
+            if(mode === 'MANUAL') {
+                manualPanel.classList.remove('hidden');
+                autoPanel.style.opacity = "0.5"; // Visualment desactivat
+            } else {
+                manualPanel.classList.add('hidden');
+                autoPanel.style.opacity = "1";
+            }
+        }
+
+        function toggleManual(device) {
+            // Canviem l'estat local
+            MANUAL_STATE[device] = !MANUAL_STATE[device];
+            updateManualButtonsVisuals();
+        }
+
+        function updateManualButtonsVisuals() {
+            document.getElementById('btn-fan').className = 'manual-btn ' + (MANUAL_STATE.fan ? 'active' : '');
+            document.getElementById('btn-pump').className = 'manual-btn ' + (MANUAL_STATE.pump ? 'active' : '');
+            document.getElementById('btn-light').className = 'manual-btn ' + (MANUAL_STATE.light ? 'active' : '');
+        }
+
+        async function guardarCanvis() {
+            const settings = {
+                mode: document.getElementById('mode-selector').value,
+                planta_activa: document.getElementById('plant-selector').value,
+                
+                // Manuals
+                manual_fan: MANUAL_STATE.fan,
+                manual_pump: MANUAL_STATE.pump,
+                manual_light: MANUAL_STATE.light,
+                
+                // Auto
+                t_min: parseFloat(document.getElementById('set-tmin').value),
+                t_max: parseFloat(document.getElementById('set-tmax').value),
+                soil_min: parseInt(document.getElementById('set-soil').value),
+                l_on: document.getElementById('set-lon').value,
+                l_off: document.getElementById('set-loff').value
+            };
+
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    device_id: CREDENTIALS.id, 
+                    password: CREDENTIALS.pass,
+                    settings: settings
+                })
+            });
+
+            if(res.ok) alert("✅ Configuració enviada a l'Hivernacle!");
+            else alert("❌ Error guardant");
+        }
+
+        // 6. GRÀFICA
+        function actualitzarGrafica(historic) {
+            if(!historic || historic.length === 0) return;
+            const labels = historic.map(h => new Date(h.data_hora).toLocaleTimeString()).reverse();
+            const temps = historic.map(h => h.temp).reverse();
+            const soils = historic.map(h => h.hum_sol).reverse();
+
+            if(chartInstance) {
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = temps;
+                chartInstance.data.datasets[1].data = soils;
+                chartInstance.update();
+            } else {
+                const ctx = document.getElementById('myChart').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Temp (ºC)', data: temps, borderColor: '#e74c3c', tension: 0.1 },
+                            { label: 'Hum. Sòl (%)', data: soils, borderColor: '#3498db', tension: 0.1 }
+                        ]
+                    }
+                });
+            }
+        }
+    </script>
+</body>
 </html>
