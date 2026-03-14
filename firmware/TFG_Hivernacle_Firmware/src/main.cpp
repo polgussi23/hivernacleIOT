@@ -67,7 +67,10 @@ float currentLux = 0;
 
 // Temporitzador per no enviar dades massa sovint
 unsigned long lastCloudSend = 0;
-const long CLOUD_INTERVAL = 60000; // Enviar cada 15 segons (per proves) / Producció podria ser cada 60 segons? 
+unsigned long lastCloudReceived = 0;
+//const long CLOUD_INTERVAL = 60000; // Enviar cada 15 segons (per proves) / Producció podria ser cada 60 segons? 
+const long SEND_DATA_TO_CLOUD = 60000; // Enviarem dades dels sensors cada minut
+const long GET_CONFIG_FROM_CLOUD = 5000; // Rebre dades de l'API cada 5 segons
 
 // Funció per a extreure l'hora d'un string
 int parseHour(String timeStr){
@@ -140,14 +143,10 @@ void sendDataToCloud() {
   if(WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
-  http.setTimeout(3600);
-
   http.begin(serverUrl);
-  
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Auth-Token", API_TOKEN);
 
-  // Es crea el paquet JSON amb les dades a enviar a la API
   JsonDocument doc;
   doc["device_id"] = DEVICE_ID;
   doc["temp"] = currentTemp;
@@ -158,26 +157,48 @@ void sendDataToCloud() {
   String jsonString;
   serializeJson(doc, jsonString);
 
-  Serial.print("☁️ Enviant dades al núvol... ");
+  Serial.print("☁️ Enviant dades (Sensors)... ");
   int httpResponseCode = http.POST(jsonString);
+
+  if (httpResponseCode == 200 || httpResponseCode == 201) {
+    Serial.println("OK!");
+  } else {
+    Serial.print("Error enviant: "); Serial.println(httpResponseCode);
+  }
+  
+  http.end();
+}
+
+// Funció per a rebre ordres
+void getConfigFromCloud() {
+  if(WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  
+  // Opció recomanada: Fer un GET a la URL passant el device_id
+  // Ex: https://teu-worker.workers.dev/?device_id=hivernacle_1
+  String fetchUrl = String(serverUrl) + "?device_id=" + String(DEVICE_ID);
+  
+  http.begin(fetchUrl);
+  http.addHeader("X-Auth-Token", API_TOKEN);
+
+  Serial.print("📥 Comprovant ordres... ");
+  int httpResponseCode = http.GET(); // Fem un GET en lloc d'un POST
 
   if (httpResponseCode == 200) {
     String response = http.getString();
-    Serial.println("OK! Actualitzant config...");
     
     JsonDocument docIn;
     DeserializationError error = deserializeJson(docIn, response);
 
     if(!error){
-      // Guardem la nova configuració a la struct "Config"
+      // Guardem la nova configuració
       config.mode = docIn["mode"].as<String>();
       
-      // Configuracions manuals
       config.man_fan = docIn["manual"]["fan"];
       config.man_pump = docIn["manual"]["pump"];
       config.man_light = docIn["manual"]["light"];
 
-      // Configuracions Auto
       config.target_t_max = docIn["auto"]["t_max"];
       config.target_t_min = docIn["auto"]["t_min"];
       config.target_soil_min = docIn["auto"]["soil_min"];
@@ -185,12 +206,12 @@ void sendDataToCloud() {
       config.hour_on = parseHour(docIn["auto"]["light_on"].as<String>());
       config.hour_off = parseHour(docIn["auto"]["light_off"].as<String>());
 
-      Serial.println("    -> Mode: " + config.mode + " | Planta Max Temp: " + String(config.target_t_max));
-    } else{
+      Serial.println("OK! Mode: " + config.mode);
+    } else {
       Serial.print("ERROR JSON: "); Serial.println(error.c_str());
     }
   } else {
-    Serial.print("Error enviant: "); Serial.println(httpResponseCode);
+    Serial.print("Error rebent: "); Serial.println(httpResponseCode);
   }
   
   http.end();
@@ -297,12 +318,18 @@ void loop() {
   
 
   // 3. ENVIAR AL NÚVOL (Cada 60 segons)
-  if (millis() - lastCloudSend > CLOUD_INTERVAL) {
+  if (millis() - lastCloudReceived > GET_CONFIG_FROM_CLOUD) {
     // Enviem
-    sendDataToCloud();
-    lastCloudSend = millis();
-
-    checkFirmwareUpdate(); // En un futur es pot posar que es comprovi cada hora, no cada minut
+    getConfigFromCloud();
+    lastCloudReceived = millis();
+    
+    if(millis() - lastCloudSend > SEND_DATA_TO_CLOUD) {
+      sendDataToCloud();
+      lastCloudSend = millis();
+      
+      checkFirmwareUpdate(); // En un futur es pot posar que es comprovi cada hora, no cada minut
+    }
+    
   }
 
   // 4. EXECUTAR CONTROL INTEL·LIGENT
