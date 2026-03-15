@@ -189,7 +189,7 @@ void getConfigFromCloud() {
 
   if (httpResponseCode == 200) {
     String response = http.getString();
-    
+    Serial.println("Rebut de l'API: " + response);
     JsonDocument docIn;
     DeserializationError error = deserializeJson(docIn, response);
 
@@ -302,6 +302,7 @@ void setup() {
 }
 
 void loop() {
+  esp_task_wdt_reset(); // Afegit perquè la placa no es reinici cada 15 segons
   // 1. Reconnexió Wi-Fi
   if (WiFi.status() != WL_CONNECTED) {
       WiFi.disconnect(); WiFi.reconnect(); delay(5000); return;
