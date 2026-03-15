@@ -196,9 +196,9 @@ export default {
             const clientVersion = reqData.current_version;
             
             // ------------------- VERSIÓ ACTUAL HIVERNACLE -------------------
-            const LATEST_VERSION = "0.1.2";
+            const LATEST_VERSION = "0.1.3";
             // ----------------------------------------------------------------
-            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.2/firmware.bin"; 
+            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.3/firmware.bin"; 
 
             if (clientVersion !== LATEST_VERSION) {
                 return new Response(JSON.stringify({
