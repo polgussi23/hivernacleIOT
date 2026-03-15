@@ -13,12 +13,12 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.1.1";
+const char* FIRMWARE_VERSION = "0.1.3";
 
 // --- CONFIGURACIÓ NÚVOL ---
 const char* DEVICE_ID = "H_POL";
 const char* API_TOKEN = "uySJYyqvyiLaoKEXDudoplp8tPsv1HVXT3W8U5mXHFz1iEDYw5IfHQV0Whr4XWCS"; 
-const char* serverUrl = "https://hivernacle-api.polgussi23.workers.dev/api/upload";
+const char* serverUrl = "https://hivernacle-api.polgussi23.workers.dev/api";
 const char* updateCheckUrl = "https://hivernacle-api.polgussi23.workers.dev/api/check-update";
 
 // --- CONFIGURACIÓ ACTUADORS ---
@@ -142,8 +142,10 @@ void checkFirmwareUpdate() {
 void sendDataToCloud() {
   if(WiFi.status() != WL_CONNECTED) return;
 
+  String fetchUrl = String(serverUrl) + "/upload=";
+
   HTTPClient http;
-  http.begin(serverUrl);
+  http.begin(fetchUrl);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Auth-Token", API_TOKEN);
 
@@ -177,7 +179,7 @@ void getConfigFromCloud() {
   
   // Opció recomanada: Fer un GET a la URL passant el device_id
   // Ex: https://teu-worker.workers.dev/?device_id=hivernacle_1
-  String fetchUrl = String(serverUrl) + "?device_id=" + String(DEVICE_ID);
+  String fetchUrl = String(serverUrl) + "/config?device_id=" + String(DEVICE_ID) + "&nocache=" + String(millis());
   
   http.begin(fetchUrl);
   http.addHeader("X-Auth-Token", API_TOKEN);
@@ -223,7 +225,7 @@ void runAutoControl() {
   bool timeSynced = getLocalTime(&timeinfo);
   int currentHour = timeSynced ? timeinfo.tm_hour : 12;
 
-  Serial.println("LÒGICA (" + config.mode + "): ");
+  //Serial.println("LÒGICA (" + config.mode + "): ");
 
   // Cas "MANUAL": L'usuari està manant des de la web
   if(config.mode == "MANUAL"){
@@ -231,37 +233,37 @@ void runAutoControl() {
     digitalWrite(PIN_PUMP_LED, config.man_pump ? HIGH : LOW);
     digitalWrite(PIN_GROW_LED, config.man_light ? HIGH : LOW);
 
-    Serial.printf("Fan: %d | Pump: %d | Light: %d\n", config.man_fan, config.man_pump, config.man_light);
+   // Serial.printf("Fan: %d | Pump: %d | Light: %d\n", config.man_fan, config.man_pump, config.man_light);
   }
   // Cas "AUTO": L'ESP32 decideix segons els objectius de la plantació 
   else{
     // Lògica Temperatura
     if(currentTemp > config.target_t_max){
       digitalWrite(PIN_FAN, HIGH);
-      Serial.print("CALOR -> Fan ON | ");
+      //Serial.print("CALOR -> Fan ON | ");
     } else{
       digitalWrite(PIN_FAN, LOW);
-      Serial.print("TEMP OK | ");
+      //Serial.print("TEMP OK | ");
     }
     // Lògica Reg
     if (currentSoilPct < config.target_soil_min){
       digitalWrite(PIN_PUMP_LED, HIGH);
-      Serial.print("SEC -> Regant | ");
+      //Serial.print("SEC -> Regant | ");
     }
     else{
       digitalWrite(PIN_PUMP_LED, LOW);
-      Serial.print("Humitat Sòl OK | ");
+      //Serial.print("Humitat Sòl OK | ");
     }
 
     // Lògica Llum
     bool isDayTime = (currentHour >= config.hour_on && currentHour < config.hour_off);
     if (isDayTime && currentLux < 250){
       digitalWrite(PIN_GROW_LED, HIGH);
-      Serial.print("FALTA LLUM -> Light ON");
+      //Serial.print("FALTA LLUM -> Light ON");
     }
     else{
       digitalWrite(PIN_GROW_LED, LOW);
-      Serial.print("Llum OK / Nit");
+      //Serial.print("Llum OK / Nit");
     }
   }
 }

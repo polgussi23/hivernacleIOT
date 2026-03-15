@@ -82,8 +82,33 @@ export default {
                     ctx.waitUntil(enviarAlerta(`💧 ALERTA: ${config.propietari}, cal regar (${data.soil}%)!`, "droplet"));
                 }
 
-                // D. RETORNEM LA CONFIGURACIÓ (RESPOSTA AL SOLDAT)
-                // L'ESP32 rep això i sap si ha d'activar relés o canviar objectius
+                // D. JA NO RETORNEM LA CONFIG, NOMÉS UN 'OK' (Així és més ràpid i gasta menys dades)
+                return new Response(JSON.stringify({ status: "ok" }), { 
+                    status: 200, 
+                    headers: { "Content-Type": "application/json" } 
+                });
+
+            } catch (e) {
+                return new Response("Error Upload: " + e, { status: 500 });
+            }
+        }
+
+        if (url.pathname === '/api/config' && request.method === 'GET') {
+            try {
+                // Agafem el device_id de la URL (ex: /api/config?device_id=hivernacle_1)
+                const device_id = url.searchParams.get("device_id");
+                const token = request.headers.get("X-Auth-Token");
+
+                if (!device_id) return new Response("Falta device_id", { status: 400 });
+
+                // VERIFIQUEM IDENTITAT
+                const config = await env.DB.prepare(
+                    "SELECT * FROM hivernacles WHERE device_id = ? AND api_token = ?"
+                ).bind(device_id, token).first();
+
+                if (!config) return new Response("Error: Token ESP32 Invàlid", { status: 403 });
+
+                // RETORNEM NOMÉS LA CONFIGURACIÓ
                 const respostaESP = {
                     mode: config.mode_operacio,
                     manual: {
@@ -100,10 +125,13 @@ export default {
                     }
                 };
                 
-                return new Response(JSON.stringify(respostaESP), { status: 200 });
+                return new Response(JSON.stringify(respostaESP), { 
+                    status: 200, 
+                    headers: { "Content-Type": "application/json" } 
+                });
 
             } catch (e) {
-                return new Response("Error Upload: " + e, { status: 500 });
+                return new Response("Error Config: " + e, { status: 500 });
             }
         }
 
@@ -120,7 +148,7 @@ export default {
             const estat = await env.DB.prepare("SELECT * FROM hivernacles WHERE device_id = ?").bind(device_id).first();
 
             // Obtenim històric per la gràfica (ultimes 50)
-            const historic = await env.DB.prepare("SELECT temp, hum, hum_sol, data_hora FROM lectures WHERE device_id = ? ORDER BY id DESC LIMIT 50").bind(device_id).all();
+            const historic = await env.DB.prepare("SELECT temp, hum, hum_sol, llum, data_hora FROM lectures WHERE device_id = ? ORDER BY id DESC LIMIT 50").bind(device_id).all();
 
             return new Response(JSON.stringify({ lectura, estat, historic: historic.results }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
@@ -168,9 +196,9 @@ export default {
             const clientVersion = reqData.current_version;
             
             // ------------------- VERSIÓ ACTUAL HIVERNACLE -------------------
-            const LATEST_VERSION = "0.1.1";
+            const LATEST_VERSION = "0.1.2";
             // ----------------------------------------------------------------
-            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.1/firmware.bin"; 
+            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.2/firmware.bin"; 
 
             if (clientVersion !== LATEST_VERSION) {
                 return new Response(JSON.stringify({
