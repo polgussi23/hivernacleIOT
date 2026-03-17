@@ -114,7 +114,8 @@ export default {
                     manual: {
                         fan: config.manual_fan,
                         pump: config.manual_pump,
-                        light: config.manual_light
+                        light: config.manual_light,
+                        heater: config.manual_heater
                     },
                     auto: {
                         t_min: config.target_temp_min,
@@ -166,7 +167,7 @@ export default {
              await env.DB.prepare(`
                 UPDATE hivernacles SET 
                 mode_operacio = ?, 
-                manual_fan = ?, manual_pump = ?, manual_light = ?,
+                manual_fan = ?, manual_pump = ?, manual_light = ?, manual_heater = ?,
                 planta_activa = ?,
                 target_temp_max = ?, target_temp_min = ?,
                 target_hum_sol_min = ?,
@@ -174,7 +175,7 @@ export default {
                 WHERE device_id = ?
              `).bind(
                  settings.mode, 
-                 settings.manual_fan ? 1 : 0, settings.manual_pump ? 1 : 0, settings.manual_light ? 1 : 0,
+                 settings.manual_fan ? 1 : 0, settings.manual_pump ? 1 : 0, settings.manual_light ? 1 : 0, settings.manual_heater ? 1 : 0,
                  settings.planta_activa,
                  settings.t_max, settings.t_min, 
                  settings.soil_min,
@@ -196,9 +197,9 @@ export default {
             const clientVersion = reqData.current_version;
             
             // ------------------- VERSIÓ ACTUAL HIVERNACLE -------------------
-            const LATEST_VERSION = "0.1.3";
+            const LATEST_VERSION = "0.1.5";
             // ----------------------------------------------------------------
-            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.3/firmware.bin"; 
+            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.5/firmware.bin"; 
 
             if (clientVersion !== LATEST_VERSION) {
                 return new Response(JSON.stringify({

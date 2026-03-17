@@ -9,6 +9,16 @@
         :root { --primary: #27ae60; --bg: #f4f7f6; --card: #ffffff; --text: #2c3e50; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
+        
+        .version-tag {
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            font-size: 0.75em;
+            color: #7f8c8d; /* Un gris suau perquè no distregui */
+            z-index: 1000; /* Perquè quedi per sobre de tot */
+        }
+
         /* LOGIN STYLES */
         #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; }
         .login-box { background: var(--card); padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px; }
@@ -34,7 +44,7 @@
 
         /* CONTROL PANEL */
         .control-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-        .manual-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .manual-btns { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
         .manual-btn { background: #95a5a6; }
         .manual-btn.active { background: #e67e22; box-shadow: 0 0 10px rgba(230, 126, 34, 0.5); }
         
@@ -57,7 +67,7 @@
     </style>
 </head>
 <body>
-
+    <div class="version-tag">Hivernacle IoT v0.1.5</div>
     <div id="login-screen">
         <div class="login-box">
             <h2>🌱 Accés Hivernacle</h2>
@@ -139,13 +149,13 @@
                         </div>
                     </div>
                 </div>
-
                 <div id="manual-controls" class="control-group hidden">
                     <p style="font-size: 0.8em; color: orange;">⚠️ En mode MANUAL l'hivernacle no es regula sol.</p>
                     <div class="manual-btns">
                         <button id="btn-fan" class="manual-btn" onclick="toggleManual('fan')">💨 Ventilador</button>
                         <button id="btn-pump" class="manual-btn" onclick="toggleManual('pump')">💧 Bomba</button>
                         <button id="btn-light" class="manual-btn" onclick="toggleManual('light')">💡 Llums</button>
+                        <button id="btn-heater" class="manual-btn" onclick="toggleManual('heater')">🔥 Calefacció</button>
                     </div>
                 </div>
 
@@ -186,7 +196,7 @@
         // Dades globals
         let CREDENTIALS = { id: '', pass: '' };
         let ALL_PLANTS = [];
-        let MANUAL_STATE = { fan: false, pump: false, light: false };
+        let MANUAL_STATE = { fan: false, pump: false, light: false, heater: false };
         
         // Objecte per guardar les 4 instàncies de gràfiques
         let charts = {
@@ -313,7 +323,12 @@
             document.getElementById('val-light').innerText = lect.llum?.toFixed(0) || '--';
 
             // Actualitzem estat botons manuals
-            MANUAL_STATE = { fan: !!conf.manual_fan, pump: !!conf.manual_pump, light: !!conf.manual_light };
+            MANUAL_STATE = { 
+                fan: !!conf.manual_fan, 
+                pump: !!conf.manual_pump, 
+                light: !!conf.manual_light, 
+                heater: !!conf.manual_heater 
+            };
             updateManualButtonsVisuals();
             
             // Actualitzem selector mode
@@ -361,6 +376,7 @@
             document.getElementById('btn-fan').className = 'manual-btn ' + (MANUAL_STATE.fan ? 'active' : '');
             document.getElementById('btn-pump').className = 'manual-btn ' + (MANUAL_STATE.pump ? 'active' : '');
             document.getElementById('btn-light').className = 'manual-btn ' + (MANUAL_STATE.light ? 'active' : '');
+            document.getElementById('btn-heater').className = 'manual-btn ' + (MANUAL_STATE.heater ? 'active' : '');
         }
 
         async function guardarCanvis() {
@@ -370,6 +386,7 @@
                 manual_fan: MANUAL_STATE.fan,
                 manual_pump: MANUAL_STATE.pump,
                 manual_light: MANUAL_STATE.light,
+                manual_heater: MANUAL_STATE.heater,
                 t_min: parseFloat(document.getElementById('set-tmin').value),
                 t_max: parseFloat(document.getElementById('set-tmax').value),
                 soil_min: parseInt(document.getElementById('set-soil').value),

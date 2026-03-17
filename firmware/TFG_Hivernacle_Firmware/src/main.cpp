@@ -13,7 +13,7 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.1.3";
+const char* FIRMWARE_VERSION = "0.1.5";
 
 // --- CONFIGURACIÓ NÚVOL ---
 const char* DEVICE_ID = "H_POL";
@@ -22,9 +22,10 @@ const char* serverUrl = "https://hivernacle-api.polgussi23.workers.dev/api";
 const char* updateCheckUrl = "https://hivernacle-api.polgussi23.workers.dev/api/check-update";
 
 // --- CONFIGURACIÓ ACTUADORS ---
-const int PIN_PUMP_LED = 26; // Pin bomba aigua
+const int PIN_PUMP_LED = 25; // Pin bomba aigua
 const int PIN_GROW_LED = 27; // Pin Llum
-const int PIN_FAN = 25; // Pin ventiladors
+const int PIN_FAN = 26; // Pin ventiladors
+const int PIN_HEATER = 33; // Pin calefactor
 
 // --- CONFIGURACIÓ SENSORS ---
 const int PIN_SOIL = 34;
@@ -45,6 +46,7 @@ struct Config {
   bool man_fan = false;
   bool man_pump = false;
   bool man_light = false;
+  bool man_heater = false;
 } config;
 
 // --- SERVIDOR HORARI ---
@@ -115,8 +117,11 @@ void checkFirmwareUpdate() {
       // Iniciem l'actualització
       WiFiClientSecure client;
       client.setInsecure(); // Saltem validació SSL per simplicitat
-      
+      httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+      esp_task_wdt_delete(NULL); // Adormim el watchdog per a fer l'actualització
       t_httpUpdate_return ret = httpUpdate.update(client, binUrl);
+      esp_task_wdt_add(NULL); // Tornem a activarl el watchdog
 
       switch (ret) {
         case HTTP_UPDATE_FAILED:
@@ -142,7 +147,7 @@ void checkFirmwareUpdate() {
 void sendDataToCloud() {
   if(WiFi.status() != WL_CONNECTED) return;
 
-  String fetchUrl = String(serverUrl) + "/upload=";
+  String fetchUrl = String(serverUrl) + "/upload";
 
   HTTPClient http;
   http.begin(fetchUrl);
@@ -200,6 +205,7 @@ void getConfigFromCloud() {
       config.man_fan = docIn["manual"]["fan"];
       config.man_pump = docIn["manual"]["pump"];
       config.man_light = docIn["manual"]["light"];
+      config.man_heater = docIn["manual"]["heater"];
 
       config.target_t_max = docIn["auto"]["t_max"];
       config.target_t_min = docIn["auto"]["t_min"];
@@ -232,6 +238,7 @@ void runAutoControl() {
     digitalWrite(PIN_FAN, config.man_fan ? HIGH : LOW);
     digitalWrite(PIN_PUMP_LED, config.man_pump ? HIGH : LOW);
     digitalWrite(PIN_GROW_LED, config.man_light ? HIGH : LOW);
+    digitalWrite(PIN_HEATER, config.man_heater ? HIGH : LOW);
 
    // Serial.printf("Fan: %d | Pump: %d | Light: %d\n", config.man_fan, config.man_pump, config.man_light);
   }
@@ -240,10 +247,13 @@ void runAutoControl() {
     // Lògica Temperatura
     if(currentTemp > config.target_t_max){
       digitalWrite(PIN_FAN, HIGH);
-      //Serial.print("CALOR -> Fan ON | ");
-    } else{
+      digitalWrite(PIN_HEATER, LOW); // Si fa calor, apaguem calefacció
+    } else if (currentTemp < config.target_t_min) {
+      digitalWrite(PIN_FAN, LOW); // Si fa fred, apaguem ventilador
+      digitalWrite(PIN_HEATER, HIGH); // I encenem calefacció
+    } else {
       digitalWrite(PIN_FAN, LOW);
-      //Serial.print("TEMP OK | ");
+      digitalWrite(PIN_HEATER, LOW);
     }
     // Lògica Reg
     if (currentSoilPct < config.target_soil_min){
@@ -275,10 +285,12 @@ void setup() {
   pinMode(PIN_PUMP_LED, OUTPUT);
   pinMode(PIN_GROW_LED, OUTPUT);
   pinMode(PIN_FAN, OUTPUT);
+  pinMode(PIN_HEATER, OUTPUT);
 
   digitalWrite(PIN_PUMP_LED, LOW);
   digitalWrite(PIN_GROW_LED, LOW);
   digitalWrite(PIN_FAN, LOW);
+  digitalWrite(PIN_HEATER, LOW);
   
   pinMode(PIN_SOIL, INPUT);
 
