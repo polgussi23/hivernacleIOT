@@ -3,469 +3,931 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hivernacle IoT - Control Panel</title>
+    <title>Hivernacle IoT — Control</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #27ae60; --bg: #f4f7f6; --card: #ffffff; --text: #2c3e50; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        
-        
-        .version-tag {
-            position: absolute;
-            top: 5px;
-            left: 10px;
-            font-size: 0.75em;
-            color: #7f8c8d; /* Un gris suau perquè no distregui */
-            z-index: 1000; /* Perquè quedi per sobre de tot */
+        :root {
+            --bg:        #0b0f0e;
+            --surface:   #111815;
+            --surface2:  #162019;
+            --border:    #1f2e26;
+            --border2:   #2a3d32;
+            --green:     #3ddc84;
+            --green-dim: #1f5c3a;
+            --green-glow:rgba(61,220,132,0.12);
+            --amber:     #f0a500;
+            --red:       #e05252;
+            --blue:      #4da8da;
+            --text:      #d4e8dc;
+            --text2:     #6b8f78;
+            --text3:     #3d5446;
+            --mono:      'DM Mono', monospace;
+            --sans:      'Syne', sans-serif;
+            --radius:    10px;
+            --radius-lg: 16px;
         }
 
-        /* LOGIN STYLES */
-        #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .login-box { background: var(--card); padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px; }
-        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #219150; }
-        
-        /* DASHBOARD STYLES */
-        #dashboard { display: none; max-width: 1200px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        
-        /* ESTAT ONLINE/OFFLINE */
-        .status-badge { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; margin-left: 10px; vertical-align: middle; color: white;}
-        .status-badge.online { background-color: #2ecc71; }
-        .status-badge.offline { background-color: #e74c3c; }
-        .status-dot { height: 8px; width: 8px; background-color: white; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-        
-        .card { background: var(--card); padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .sensor-val { font-size: 2.5em; font-weight: bold; color: var(--primary); }
-        .sensor-label { color: #7f8c8d; font-size: 0.9em; }
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
 
-        /* CONTROL PANEL */
-        .control-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-        .manual-btns { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
-        .manual-btn { background: #95a5a6; }
-        .manual-btn.active { background: #e67e22; box-shadow: 0 0 10px rgba(230, 126, 34, 0.5); }
-        
-        /* Inputs petits */
+        /* ── NOISE TEXTURE OVERLAY ─────────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            opacity: 0.4;
+        }
+
+        /* ── LOGIN ─────────────────────────────────────────────────── */
+        #login-screen {
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; position: relative; z-index: 1;
+        }
+
+        .login-wrap {
+            width: 100%; max-width: 400px; padding: 20px;
+        }
+
+        .login-logo {
+            text-align: center; margin-bottom: 36px;
+        }
+        .login-logo .icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 64px; height: 64px; border-radius: 50%;
+            background: var(--green-glow); border: 1px solid var(--green-dim);
+            font-size: 28px; margin-bottom: 16px;
+        }
+        .login-logo h1 {
+            font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px;
+            color: var(--text);
+        }
+        .login-logo p { font-size: 0.8rem; color: var(--text2); font-family: var(--mono); margin-top: 4px; }
+
+        .login-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+        }
+
+        .field { margin-bottom: 16px; }
+        .field label { display: block; font-size: 0.72rem; font-family: var(--mono); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .field input {
+            width: 100%; padding: 12px 14px;
+            background: var(--bg); border: 1px solid var(--border2);
+            border-radius: var(--radius); color: var(--text);
+            font-family: var(--mono); font-size: 0.9rem;
+            outline: none; transition: border-color .2s, box-shadow .2s;
+        }
+        .field input:focus {
+            border-color: var(--green-dim);
+            box-shadow: 0 0 0 3px var(--green-glow);
+        }
+
+        .btn-primary {
+            width: 100%; padding: 13px;
+            background: var(--green); color: #061008;
+            border: none; border-radius: var(--radius);
+            font-family: var(--sans); font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; letter-spacing: 0.3px;
+            transition: opacity .15s, transform .1s;
+            margin-top: 8px;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:active { transform: scale(0.99); }
+
+        #login-error {
+            text-align: center; color: var(--red); font-size: 0.8rem;
+            font-family: var(--mono); margin-top: 12px; display: none;
+        }
+
+        /* ── DASHBOARD ─────────────────────────────────────────────── */
+        #dashboard { display: none; position: relative; z-index: 1; }
+
+        .topbar {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(11,15,14,0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            display: flex; align-items: center; justify-content: space-between;
+            height: 60px; gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .topbar { padding: 0 14px; }
+            .version { display: none; }
+            .user-chip { display: none; }
+            .topbar-left { gap: 10px; }
+        }
+
+        .topbar-left { display: flex; align-items: center; gap: 20px; }
+        .topbar-brand {
+            font-size: 0.95rem; font-weight: 700; letter-spacing: -0.3px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .topbar-brand span { color: var(--green); }
+
+        .version { font-family: var(--mono); font-size: 0.7rem; color: var(--text3); }
+
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 5px 12px; border-radius: 999px;
+            font-family: var(--mono); font-size: 0.72rem; font-weight: 500;
+            border: 1px solid; transition: all .4s;
+        }
+        .status-pill.online  { color: var(--green); border-color: var(--green-dim); background: var(--green-glow); }
+        .status-pill.offline { color: var(--red);   border-color: #5c2020;          background: rgba(224,82,82,.08); }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+        }
+        .status-pill.online .status-dot { animation: pulse-dot 2s infinite; }
+        @keyframes pulse-dot {
+            0%,100%{ opacity:1; transform:scale(1); }
+            50%{ opacity:.5; transform:scale(0.7); }
+        }
+
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .user-chip {
+            font-family: var(--mono); font-size: 0.78rem; color: var(--text2);
+        }
+        .btn-logout {
+            padding: 7px 14px; background: transparent;
+            border: 1px solid var(--border2); border-radius: var(--radius);
+            color: var(--text2); font-family: var(--sans); font-size: 0.78rem;
+            cursor: pointer; transition: border-color .2s, color .2s;
+        }
+        .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+        /* ── MAIN LAYOUT ───────────────────────────────────────────── */
+        .main { padding: 28px 32px; max-width: 1280px; margin: 0 auto; }
+        @media (max-width: 640px) {
+            .main { padding: 14px; }
+        }
+
+        /* ── SENSOR CARDS ──────────────────────────────────────────── */
+        .sensors-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px; margin-bottom: 20px;
+        }
+        @media (max-width: 640px) {
+            .sensors-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        }
+
+        .sensor-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 22px 22px 18px;
+            position: relative; overflow: hidden;
+            transition: border-color .2s;
+        }
+        .sensor-card:hover { border-color: var(--border2); }
+        .sensor-card::after {
+            content: '';
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 2px; background: var(--accent, var(--green));
+            opacity: 0.5;
+        }
+        .sensor-card[data-accent="amber"]::after { --accent: var(--amber); }
+        .sensor-card[data-accent="blue"]::after  { --accent: var(--blue); }
+        .sensor-card[data-accent="red"]::after   { --accent: var(--red); }
+
+        .sensor-icon { font-size: 1.1rem; margin-bottom: 12px; opacity: 0.7; }
+        .sensor-label { font-size: 0.7rem; font-family: var(--mono); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .sensor-value {
+            font-family: var(--mono); font-size: 2.4rem; font-weight: 300;
+            line-height: 1; color: var(--text);
+            display: flex; align-items: baseline; gap: 4px;
+        }
+        .sensor-unit { font-size: 1rem; color: var(--text2); }
+
+        /* ── BOTTOM GRID ───────────────────────────────────────────── */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 380px) 1fr;
+            gap: 14px;
+        }
+        @media (max-width: 900px) {
+            .bottom-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── PANEL CARD ────────────────────────────────────────────── */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px 22px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .panel-header h3 { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.2px; }
+        .panel-header .ph-icon { font-size: 1rem; opacity: 0.7; }
+
+        .panel-body { padding: 20px 22px; }
+
+        /* ── FORM ELEMENTS ─────────────────────────────────────────── */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 0.7rem; font-family: var(--mono);
+            color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px;
+        }
+        .form-group select, .form-group input[type="number"], .form-group input[type="time"] {
+            width: 100%; padding: 9px 12px;
+            background: var(--bg); border: 1px solid var(--border2);
+            border-radius: var(--radius); color: var(--text);
+            font-family: var(--mono); font-size: 0.85rem;
+            outline: none; transition: border-color .2s, box-shadow .2s;
+            appearance: none;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            border-color: var(--green-dim);
+            box-shadow: 0 0 0 3px var(--green-glow);
+        }
+        .form-group select option { background: var(--surface); }
+
+        /* Mode toggle as two-button switch */
+        .mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+        .mode-toggle button {
+            padding: 9px; background: transparent; border: none;
+            color: var(--text2); font-family: var(--mono); font-size: 0.78rem;
+            cursor: pointer; transition: background .2s, color .2s;
+        }
+        .mode-toggle button.active-auto  { background: var(--green-glow); color: var(--green); }
+        .mode-toggle button.active-manual{ background: rgba(240,165,0,.1); color: var(--amber); }
+
+        /* Auto settings grid */
         .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .settings-grid label { font-size: 0.8em; font-weight: bold; }
-        
-        /* GRÀFIQUES GRIDELLA */
-        .charts-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;}
-        .chart-card { background: var(--card); padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .chart-card h4 { margin-top: 0; margin-bottom: 10px; color: #34495e; font-size: 1em; text-align: center;}
-        .canvas-wrapper { position: relative; height: 250px; width: 100%; }
-        
-        /* Responsive Gràfiques */
-        @media (max-width: 768px) {
-            .charts-container { grid-template-columns: 1fr; }
+        .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+        /* Manual actuator buttons */
+        .actuators { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .act-btn {
+            padding: 12px 10px;
+            background: var(--surface2); border: 1px solid var(--border2);
+            border-radius: var(--radius); color: var(--text2);
+            font-family: var(--sans); font-size: 0.8rem; font-weight: 500;
+            cursor: pointer; transition: all .2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .act-btn:hover { border-color: var(--border); color: var(--text); }
+        .act-btn.active {
+            background: rgba(240,165,0,.1); border-color: rgba(240,165,0,.4);
+            color: var(--amber); box-shadow: 0 0 12px rgba(240,165,0,.1);
         }
 
-        .hidden { display: none; }
+        .warning-note {
+            font-size: 0.72rem; font-family: var(--mono); color: var(--amber);
+            background: rgba(240,165,0,.07); border: 1px solid rgba(240,165,0,.2);
+            border-radius: var(--radius); padding: 8px 10px; margin-bottom: 12px;
+        }
+
+        .btn-save {
+            width: 100%; padding: 11px;
+            background: var(--green-glow); border: 1px solid var(--green-dim);
+            border-radius: var(--radius); color: var(--green);
+            font-family: var(--sans); font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: background .2s;
+            margin-top: 8px;
+        }
+        .btn-save:hover { background: rgba(61,220,132,.2); }
+
+        .hidden { display: none !important; }
+        .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+        /* ── CHARTS ────────────────────────────────────────────────── */
+        .charts-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+
+        .charts-panel-header {
+            padding: 16px 22px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .charts-panel-header h3 { font-size: 0.85rem; font-weight: 600; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 0;
+        }
+        /* Quan passa a 1 columna, restaurem els bordes */
+        @media (max-width: 620px) {
+            .chart-cell { border-right: none !important; }
+            .chart-cell:nth-child(3) { border-bottom: 1px solid var(--border) !important; }
+            .chart-wrap { height: 180px; }
+        }
+        .chart-cell {
+            padding: 18px 20px;
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .chart-cell:nth-child(2n)  { border-right: none; }
+        .chart-cell:nth-child(3),
+        .chart-cell:nth-child(4)   { border-bottom: none; }
+
+        .chart-title {
+            font-size: 0.7rem; font-family: var(--mono); color: var(--text2);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+        }
+        .chart-wrap { position: relative; height: 160px; }
+
     </style>
 </head>
 <body>
-    <div class="version-tag">Hivernacle IoT v0.1.5</div>
-    <div id="login-screen">
+
+<!-- ══ LOGIN ══════════════════════════════════════════════════════════ -->
+<div id="login-screen">
+    <div class="login-wrap">
+        <div class="login-logo">
+            <div class="icon">🌿</div>
+            <h1>Hivernacle IoT</h1>
+            <p>Sistema de control autònom</p>
+        </div>
         <div class="login-box">
-            <h2>🌱 Accés Hivernacle</h2>
-            <input type="text" id="dev-id" placeholder="ID Dispositiu (ex: GH_POL)">
-            <input type="password" id="dev-pass" placeholder="Contrasenya">
-            <button onclick="ferLogin()">Entrar</button>
-            <p id="login-error" style="color: red; display: none;">Error de credencials</p>
+            <div class="field">
+                <label>ID Dispositiu</label>
+                <input type="text" id="dev-id" placeholder="ex: GH_POL" autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Contrasenya</label>
+                <input type="password" id="dev-pass" placeholder="••••••••">
+            </div>
+            <button class="btn-primary" onclick="ferLogin()">Accedir</button>
+            <div id="login-error">Credencials incorrectes</div>
         </div>
     </div>
+</div>
 
-    <div id="dashboard">
-        <div class="header">
-            <h3>Hola, <span id="user-name">Usuari</span> 
-                <span id="conn-status" class="status-badge offline">
-                    <span class="status-dot"></span><span id="conn-text">Comprovant...</span>
-                </span>
-            </h3>
-            <button onclick="logout()" style="width: auto; background: #c0392b;">Sortir</button>
+<!-- ══ DASHBOARD ═══════════════════════════════════════════════════════ -->
+<div id="dashboard">
+
+    <!-- Topbar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-brand">🌱 <span>Hivernacle</span> IoT</div>
+            <span class="version">v0.1.6</span>
+            <div id="conn-status" class="status-pill offline">
+                <span class="status-dot"></span>
+                <span id="conn-text">Comprovant...</span>
+            </div>
         </div>
+        <div class="topbar-right">
+            <span class="user-chip" id="user-name">—</span>
+            <button class="btn-logout" onclick="logout()">Sortir</button>
+        </div>
+    </header>
 
-        <div class="grid">
-            <div class="card">
+    <main class="main">
+
+        <!-- Sensor cards row -->
+        <div class="sensors-grid">
+            <div class="sensor-card">
+                <div class="sensor-icon">🌡</div>
                 <div class="sensor-label">Temperatura</div>
-                <div class="sensor-val"><span id="val-temp">--</span>ºC</div>
+                <div class="sensor-value"><span id="val-temp">--</span><span class="sensor-unit">°C</span></div>
             </div>
-            <div class="card">
+            <div class="sensor-card" data-accent="blue">
+                <div class="sensor-icon">💧</div>
                 <div class="sensor-label">Humitat Aire</div>
-                <div class="sensor-val"><span id="val-hum">--</span>%</div>
+                <div class="sensor-value"><span id="val-hum">--</span><span class="sensor-unit">%</span></div>
             </div>
-            <div class="card">
+            <div class="sensor-card" data-accent="amber">
+                <div class="sensor-icon">🪱</div>
                 <div class="sensor-label">Humitat Sòl</div>
-                <div class="sensor-val"><span id="val-soil">--</span>%</div>
+                <div class="sensor-value"><span id="val-soil">--</span><span class="sensor-unit">%</span></div>
             </div>
-            <div class="card">
+            <div class="sensor-card" data-accent="red">
+                <div class="sensor-icon">☀️</div>
                 <div class="sensor-label">Llum</div>
-                <div class="sensor-val"><span id="val-light">--</span></div>
+                <div class="sensor-value"><span id="val-light">--</span><span class="sensor-unit">lx</span></div>
             </div>
         </div>
 
-        <br>
+        <!-- Bottom: control + charts -->
+        <div class="bottom-grid">
 
-        <div class="grid">
-            <div class="card" style="grid-column: span 1;">
-                <h3>⚙️ Configuració del Cultiu</h3>
-                
-                <div class="control-group">
-                    <label>📚 Biblioteca de Plantes:</label>
-                    <select id="plant-selector" onchange="carregarPlantaPredefinida()">
-                        <option value="Personalitzat">-- Personalitzat / Manual --</option>
-                    </select>
+            <!-- Control panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="ph-icon">⚙️</span>
+                    <h3>Configuració del Cultiu</h3>
                 </div>
+                <div class="panel-body">
 
-                <div class="control-group">
-                    <label>🤖 Mode de Control:</label>
-                    <select id="mode-selector" onchange="toggleManualControls()">
-                        <option value="AUTO">AUTOMÀTIC (Intel·ligent)</option>
-                        <option value="MANUAL">MANUAL (Control Directe)</option>
-                    </select>
-                </div>
+                    <div class="form-group">
+                        <label>Biblioteca de Plantes</label>
+                        <select id="plant-selector" onchange="carregarPlantaPredefinida()">
+                            <option value="Personalitzat">— Personalitzat / Manual —</option>
+                        </select>
+                    </div>
 
-                <div id="auto-settings" class="settings-grid">
-                    <div>
-                        <label>Temp. Mínima (ºC)</label>
-                        <input type="number" id="set-tmin">
-                    </div>
-                    <div>
-                        <label>Temp. Màxima (ºC)</label>
-                        <input type="number" id="set-tmax">
-                    </div>
-                    <div>
-                        <label>Mínim Humitat Sòl (%)</label>
-                        <input type="number" id="set-soil">
-                    </div>
-                    <div>
-                        <label>Hores Llum (On/Off)</label>
-                        <div style="display: flex; gap: 5px;">
-                            <input type="time" id="set-lon">
-                            <input type="time" id="set-loff">
+                    <div class="form-group">
+                        <label>Mode de Control</label>
+                        <div class="mode-toggle">
+                            <button id="btn-mode-auto"   onclick="setMode('AUTO')"   class="active-auto">⚡ Automàtic</button>
+                            <button id="btn-mode-manual" onclick="setMode('MANUAL')">🎛 Manual</button>
                         </div>
                     </div>
+
+                    <!-- Auto settings -->
+                    <div id="auto-settings">
+                        <div class="settings-grid">
+                            <div class="form-group" style="margin:0">
+                                <label>Temp. Mín (°C)</label>
+                                <input type="number" id="set-tmin">
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label>Temp. Màx (°C)</label>
+                                <input type="number" id="set-tmax">
+                            </div>
+                            <div class="form-group" style="margin:0; margin-top:10px; grid-column:1/-1">
+                                <label>Humitat Sòl Mín (%)</label>
+                                <input type="number" id="set-soil">
+                            </div>
+                            <div class="form-group" style="margin:0; margin-top:10px; grid-column:1/-1">
+                                <label>Llum — Hora d'Encesa / Apagada</label>
+                                <div class="time-row">
+                                    <input type="time" id="set-lon">
+                                    <input type="time" id="set-loff">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manual controls -->
+                    <div id="manual-controls" class="hidden">
+                        <div class="warning-note">⚠ En mode manual l'hivernacle no es regula sol.</div>
+                        <div class="actuators">
+                            <button id="btn-fan"    class="act-btn" onclick="toggleManual('fan')">💨 Ventilador</button>
+                            <button id="btn-pump"   class="act-btn" onclick="toggleManual('pump')">💧 Bomba</button>
+                            <button id="btn-light"  class="act-btn" onclick="toggleManual('light')">💡 Llums</button>
+                            <button id="btn-heater" class="act-btn" onclick="toggleManual('heater')">🔥 Calefacció</button>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+                    <button class="btn-save" onclick="guardarCanvis()">Guardar configuració →</button>
                 </div>
-                <div id="manual-controls" class="control-group hidden">
-                    <p style="font-size: 0.8em; color: orange;">⚠️ En mode MANUAL l'hivernacle no es regula sol.</p>
-                    <div class="manual-btns">
-                        <button id="btn-fan" class="manual-btn" onclick="toggleManual('fan')">💨 Ventilador</button>
-                        <button id="btn-pump" class="manual-btn" onclick="toggleManual('pump')">💧 Bomba</button>
-                        <button id="btn-light" class="manual-btn" onclick="toggleManual('light')">💡 Llums</button>
-                        <button id="btn-heater" class="manual-btn" onclick="toggleManual('heater')">🔥 Calefacció</button>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-panel">
+                <div class="charts-panel-header">
+                    <span>📈</span>
+                    <h3>Històric — Últimes lectures</h3>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-cell">
+                        <div class="chart-title">Temperatura · °C</div>
+                        <div class="chart-wrap"><canvas id="chartTemp"></canvas></div>
+                    </div>
+                    <div class="chart-cell">
+                        <div class="chart-title">Humitat Aire · %</div>
+                        <div class="chart-wrap"><canvas id="chartHum"></canvas></div>
+                    </div>
+                    <div class="chart-cell">
+                        <div class="chart-title">Humitat Sòl · %</div>
+                        <div class="chart-wrap"><canvas id="chartSoil"></canvas></div>
+                    </div>
+                    <div class="chart-cell">
+                        <div class="chart-title">Nivell de Llum · lx</div>
+                        <div class="chart-wrap"><canvas id="chartLight"></canvas></div>
                     </div>
                 </div>
+            </div>
 
-                <button onclick="guardarCanvis()" style="margin-top: 20px;">💾 Guardar Configuració</button>
+        </div><!-- /bottom-grid -->
+
+        <!-- ── LOGS ──────────────────────────────────────────────────── -->
+        <div class="logs-panel" style="margin-top: 14px;">
+            <div class="logs-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span>📋</span>
+                    <h3 style="font-size:0.85rem; font-weight:600;">Registre d'activitat</h3>
+                </div>
+                <button class="btn-clear-logs" onclick="netejarLogsVisuals()">Netejar vista</button>
+            </div>
+            <div id="logs-container">
+                <div class="log-empty">Cap registre disponible</div>
             </div>
         </div>
 
-        <h3>📈 Històric (Últimes lectures)</h3>
-        <div class="charts-container">
-            <div class="chart-card">
-                <h4>Temperatura (ºC)</h4>
-                <div class="canvas-wrapper">
-                    <canvas id="chartTemp"></canvas>
-                </div>
-            </div>
-            <div class="chart-card">
-                <h4>Humitat Aire (%)</h4>
-                <div class="canvas-wrapper">
-                    <canvas id="chartHum"></canvas>
-                </div>
-            </div>
-            <div class="chart-card">
-                <h4>Humitat Sòl (%)</h4>
-                <div class="canvas-wrapper">
-                    <canvas id="chartSoil"></canvas>
-                </div>
-            </div>
-            <div class="chart-card">
-                <h4>Nivell de Llum</h4>
-                <div class="canvas-wrapper">
-                    <canvas id="chartLight"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
+    </main>
+</div>
 
-    <script>
-        // Dades globals
-        let CREDENTIALS = { id: '', pass: '' };
-        let ALL_PLANTS = [];
-        let MANUAL_STATE = { fan: false, pump: false, light: false, heater: false };
-        
-        // Objecte per guardar les 4 instàncies de gràfiques
-        let charts = {
-            temp: null,
-            hum: null,
-            soil: null,
-            light: null
-        };
+<style>
+    .logs-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    .logs-header {
+        padding: 14px 22px;
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .btn-clear-logs {
+        padding: 5px 12px; background: transparent;
+        border: 1px solid var(--border2); border-radius: var(--radius);
+        color: var(--text3); font-family: var(--mono); font-size: 0.72rem;
+        cursor: pointer; transition: color .2s, border-color .2s;
+    }
+    .btn-clear-logs:hover { color: var(--text2); border-color: var(--border); }
 
-        // 1. INICIALITZACIÓ
-        window.onload = async () => {
-            const storedId = localStorage.getItem('gh_id');
-            const storedPass = localStorage.getItem('gh_pass');
+    #logs-container {
+        max-height: 280px;
+        overflow-y: auto;
+        padding: 6px 0;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border2) transparent;
+    }
+    #logs-container::-webkit-scrollbar { width: 4px; }
+    #logs-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
 
-            if(storedId && storedPass) {
-                CREDENTIALS.id = storedId;
-                CREDENTIALS.pass = storedPass;
-                await iniciarDashboard();
-            }
-        };
+    .log-row {
+        display: flex; align-items: baseline; gap: 12px;
+        padding: 6px 22px;
+        border-bottom: 1px solid var(--border);
+        transition: background .15s;
+        animation: log-in .25s ease;
+    }
+    .log-row:last-child { border-bottom: none; }
+    .log-row:hover { background: var(--surface2); }
+    @keyframes log-in {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .log-ts {
+        flex-shrink: 0;
+        color: var(--text3);
+        font-size: 0.72rem;
+        white-space: nowrap;
+    }
+    .log-msg { color: var(--text2); line-height: 1.4; }
+    .log-msg.warn  { color: #e0a050; }
+    .log-msg.error { color: var(--red); }
 
-        // 2. LOGICA DE LOGIN
-        async function ferLogin() {
-            const id = document.getElementById('dev-id').value;
-            const pass = document.getElementById('dev-pass').value;
+    .log-empty {
+        padding: 24px 22px;
+        color: var(--text3); font-family: var(--mono); font-size: 0.78rem;
+        text-align: center;
+    }
 
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ device_id: id, password: pass })
-                });
+    .log-badge {
+        flex-shrink: 0;
+        font-size: 0.62rem; font-family: var(--mono); font-weight: 500;
+        padding: 2px 6px; border-radius: 4px;
+        letter-spacing: 0.5px; text-transform: uppercase;
+        align-self: center;
+    }
+    .log-badge-web {
+        background: rgba(77,168,218,0.12);
+        border: 1px solid rgba(77,168,218,0.3);
+        color: #4da8da;
+    }
+    .log-badge-esp {
+        background: rgba(61,220,132,0.08);
+        border: 1px solid rgba(61,220,132,0.2);
+        color: var(--green);
+    }
+</style>
 
-                if(res.ok) {
-                    const data = await res.json();
-                    localStorage.setItem('gh_id', id);
-                    localStorage.setItem('gh_pass', pass);
-                    CREDENTIALS = { id, pass };
-                    await iniciarDashboard();
-                } else {
-                    document.getElementById('login-error').style.display = 'block';
-                }
-            } catch (e) { alert("Error de connexió"); }
+<script>
+    let CREDENTIALS = { id: '', pass: '' };
+    let ALL_PLANTS = [];
+    let MANUAL_STATE = { fan: false, pump: false, light: false, heater: false };
+    let currentMode = 'AUTO';
+    let charts = { temp: null, hum: null, soil: null, light: null };
+
+    // Chart.js global defaults — dark theme
+    Chart.defaults.color = '#6b8f78';
+    Chart.defaults.borderColor = '#1f2e26';
+    Chart.defaults.font.family = "'DM Mono', monospace";
+    Chart.defaults.font.size = 11;
+
+    window.onload = async () => {
+        const storedId   = localStorage.getItem('gh_id');
+        const storedPass = localStorage.getItem('gh_pass');
+        if (storedId && storedPass) {
+            CREDENTIALS = { id: storedId, pass: storedPass };
+            await iniciarDashboard();
         }
+    };
 
-        function logout() {
-            localStorage.clear();
-            location.reload();
-        }
-
-        // 3. CARREGAR PANELL
-        async function iniciarDashboard() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
-            
-            await carregarLlistaPlantes();
-            refreshData();
-            setInterval(refreshData, 60000);
-        }
-
-        async function carregarLlistaPlantes() {
-            const res = await fetch('/api/plants');
-            ALL_PLANTS = await res.json();
-            const selector = document.getElementById('plant-selector');
-            ALL_PLANTS.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.nom;
-                opt.innerText = p.nom;
-                selector.appendChild(opt);
-            });
-        }
-
-        // 4. OBTENIR DADES (Polling)
-        async function refreshData() {
-            try {
-                const res = await fetch('/api/status', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass })
-                });
-
-                if(!res.ok) return;
-
-                const data = await res.json();
-                actualitzarUI(data);
-                actualitzarGrafiques(data.historic);
-            } catch (e) { console.error(e); }
-        }
-
-        function actualitzarUI(data) {
-            const lect = data.lectura || {};
-            const conf = data.estat || {};
-
-            // Header
-            document.getElementById('user-name').innerText = conf.propietari;
-            
-            // --- NOVA GESTIÓ ONLINE / OFFLINE ---
-            // Fixem el límit a 70 segons de marge, ja que envia dades cada 60s
-            const dataConnexioUTC = conf.ultima_connexio.replace(' ', 'T') + 'Z';
-            const lastSeen = new Date(dataConnexioUTC);
-            const now = new Date();
-            const diffSeconds = Math.floor((now - lastSeen) / 1000);
-            
-            const badge = document.getElementById('conn-status');
-            const textSpan = document.getElementById('conn-text');
-
-            if (diffSeconds < 70) {
-                badge.className = "status-badge online";
-                // Mostrem segons si fa menys de 1 minut, o posem només "Online"
-                textSpan.innerText = `Online (${diffSeconds}s)`;
-            } else {
-                badge.className = "status-badge offline";
-                // Convertim a minuts si passa dels 60 segons
-                const diffMinutes = Math.floor(diffSeconds / 60);
-                textSpan.innerText = `Offline (Fa ${diffMinutes}m)`;
-            }
-            // ------------------------------------
-
-            // Sensors
-            document.getElementById('val-temp').innerText = lect.temp?.toFixed(1) || '--';
-            document.getElementById('val-hum').innerText = lect.hum?.toFixed(1) || '--';
-            document.getElementById('val-soil').innerText = lect.hum_sol || '--';
-            // Afegida comprovació per la llum (abans no la tenies mapejada a l'API)
-            document.getElementById('val-light').innerText = lect.llum?.toFixed(0) || '--';
-
-            // Actualitzem estat botons manuals
-            MANUAL_STATE = { 
-                fan: !!conf.manual_fan, 
-                pump: !!conf.manual_pump, 
-                light: !!conf.manual_light, 
-                heater: !!conf.manual_heater 
-            };
-            updateManualButtonsVisuals();
-            
-            // Actualitzem selector mode
-            if(document.activeElement.tagName !== "SELECT" && document.activeElement.tagName !== "INPUT") {
-               document.getElementById('mode-selector').value = conf.mode_operacio;
-               toggleManualControls(); 
-            }
-        }
-
-        // 5. GESTIÓ CONFIGURACIÓ
-        function carregarPlantaPredefinida() {
-            const nomPlanta = document.getElementById('plant-selector').value;
-            const planta = ALL_PLANTS.find(p => p.nom === nomPlanta);
-            
-            if(planta) {
-                document.getElementById('set-tmin').value = planta.temp_min;
-                document.getElementById('set-tmax').value = planta.temp_max;
-                document.getElementById('set-soil').value = planta.hum_sol_min;
-                document.getElementById('set-lon').value = "08:00"; 
-                const endHour = 8 + planta.llum_diaria_hores;
-                document.getElementById('set-loff').value = (endHour > 23 ? endHour-24 : endHour).toString().padStart(2, '0') + ":00";
-            }
-        }
-
-        function toggleManualControls() {
-            const mode = document.getElementById('mode-selector').value;
-            const manualPanel = document.getElementById('manual-controls');
-            const autoPanel = document.getElementById('auto-settings');
-
-            if(mode === 'MANUAL') {
-                manualPanel.classList.remove('hidden');
-                autoPanel.style.opacity = "0.5";
-            } else {
-                manualPanel.classList.add('hidden');
-                autoPanel.style.opacity = "1";
-            }
-        }
-
-        function toggleManual(device) {
-            MANUAL_STATE[device] = !MANUAL_STATE[device];
-            updateManualButtonsVisuals();
-        }
-
-        function updateManualButtonsVisuals() {
-            document.getElementById('btn-fan').className = 'manual-btn ' + (MANUAL_STATE.fan ? 'active' : '');
-            document.getElementById('btn-pump').className = 'manual-btn ' + (MANUAL_STATE.pump ? 'active' : '');
-            document.getElementById('btn-light').className = 'manual-btn ' + (MANUAL_STATE.light ? 'active' : '');
-            document.getElementById('btn-heater').className = 'manual-btn ' + (MANUAL_STATE.heater ? 'active' : '');
-        }
-
-        async function guardarCanvis() {
-            const settings = {
-                mode: document.getElementById('mode-selector').value,
-                planta_activa: document.getElementById('plant-selector').value,
-                manual_fan: MANUAL_STATE.fan,
-                manual_pump: MANUAL_STATE.pump,
-                manual_light: MANUAL_STATE.light,
-                manual_heater: MANUAL_STATE.heater,
-                t_min: parseFloat(document.getElementById('set-tmin').value),
-                t_max: parseFloat(document.getElementById('set-tmax').value),
-                soil_min: parseInt(document.getElementById('set-soil').value),
-                l_on: document.getElementById('set-lon').value,
-                l_off: document.getElementById('set-loff').value
-            };
-
-            const res = await fetch('/api/settings', {
+    async function ferLogin() {
+        const id   = document.getElementById('dev-id').value;
+        const pass = document.getElementById('dev-pass').value;
+        try {
+            const res = await fetch('/api/login', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    device_id: CREDENTIALS.id, 
-                    password: CREDENTIALS.pass,
-                    settings: settings
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: id, password: pass })
             });
+            if (res.ok) {
+                localStorage.setItem('gh_id',   id);
+                localStorage.setItem('gh_pass', pass);
+                CREDENTIALS = { id, pass };
+                await iniciarDashboard();
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        } catch (e) { alert("Error de connexió"); }
+    }
 
-            if(res.ok) alert("✅ Configuració guardada al servidor!");
-            else alert("❌ Error guardant");
+    function logout() { localStorage.clear(); location.reload(); }
+
+    async function iniciarDashboard() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('dashboard').style.display    = 'block';
+        await carregarLlistaPlantes();
+        refreshData();
+        refreshLogs();
+        setInterval(refreshData, 60000);
+        setInterval(refreshLogs, 30000); // Logs cada 30s
+    }
+
+    async function carregarLlistaPlantes() {
+        const res = await fetch('/api/plants');
+        ALL_PLANTS = await res.json();
+        const selector = document.getElementById('plant-selector');
+        ALL_PLANTS.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.nom; opt.innerText = p.nom;
+            selector.appendChild(opt);
+        });
+    }
+
+    async function refreshData() {
+        try {
+            const res = await fetch('/api/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass })
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            actualitzarUI(data);
+            actualitzarGrafiques(data.historic);
+        } catch (e) { console.error(e); }
+    }
+
+    function actualitzarUI(data) {
+        const lect = data.lectura || {};
+        const conf = data.estat   || {};
+
+        document.getElementById('user-name').innerText = conf.propietari || '—';
+
+        // Online / offline
+        const lastSeen = new Date((conf.ultima_connexio || '').replace(' ', 'T') + 'Z');
+        const diffSec  = Math.floor((Date.now() - lastSeen) / 1000);
+        const badge    = document.getElementById('conn-status');
+        const textSpan = document.getElementById('conn-text');
+        if (diffSec < 70) {
+            badge.className = 'status-pill online';
+            textSpan.innerText = `Online · ${diffSec}s`;
+        } else {
+            badge.className = 'status-pill offline';
+            textSpan.innerText = `Offline · ${Math.floor(diffSec/60)}m`;
         }
 
-        // 6. CREACIÓ I ACTUALITZACIÓ DE LES 4 GRÀFIQUES
-        function crearGrafica(canvasId, label, color) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            return new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: label,
-                        data: [],
-                        borderColor: color,
-                        backgroundColor: color + '33', // Color transparent pel fons
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { display: true, ticks: { maxTicksLimit: 6 } },
-                        y: { display: true }
-                    }
+        // Sensor values — animate on update
+        animVal('val-temp',  lect.temp?.toFixed(1)  || '--');
+        animVal('val-hum',   lect.hum?.toFixed(1)   || '--');
+        animVal('val-soil',  lect.hum_sol            || '--');
+        animVal('val-light', lect.llum?.toFixed(0)  || '--');
+
+        // Mode & manual state (don't override if user is interacting)
+        if (document.activeElement.tagName !== 'SELECT' && document.activeElement.tagName !== 'INPUT') {
+            setMode(conf.mode_operacio || 'AUTO', true);
+        }
+        MANUAL_STATE = {
+            fan: !!conf.manual_fan, pump: !!conf.manual_pump,
+            light: !!conf.manual_light, heater: !!conf.manual_heater
+        };
+        updateManualButtonsVisuals();
+    }
+
+    function animVal(id, newVal) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.innerText !== String(newVal)) {
+            el.style.transition = 'opacity .15s';
+            el.style.opacity = '0';
+            setTimeout(() => { el.innerText = newVal; el.style.opacity = '1'; }, 150);
+        }
+    }
+
+    function setMode(mode, fromServer = false) {
+        currentMode = mode;
+        const auto   = document.getElementById('btn-mode-auto');
+        const manual = document.getElementById('btn-mode-manual');
+        const autoS  = document.getElementById('auto-settings');
+        const manC   = document.getElementById('manual-controls');
+
+        auto.className   = mode === 'AUTO'   ? 'active-auto'   : '';
+        manual.className = mode === 'MANUAL' ? 'active-manual' : '';
+
+        if (mode === 'MANUAL') {
+            autoS.classList.add('hidden');
+            manC.classList.remove('hidden');
+        } else {
+            autoS.classList.remove('hidden');
+            manC.classList.add('hidden');
+        }
+        if (!fromServer) {
+            document.getElementById('mode-selector') &&
+            (document.getElementById('mode-selector').value = mode);
+        }
+    }
+
+    function carregarPlantaPredefinida() {
+        const nom = document.getElementById('plant-selector').value;
+        const p   = ALL_PLANTS.find(pl => pl.nom === nom);
+        if (p) {
+            document.getElementById('set-tmin').value = p.temp_min;
+            document.getElementById('set-tmax').value = p.temp_max;
+            document.getElementById('set-soil').value = p.hum_sol_min;
+            document.getElementById('set-lon').value  = '08:00';
+            const end = 8 + p.llum_diaria_hores;
+            document.getElementById('set-loff').value = (end > 23 ? end - 24 : end).toString().padStart(2,'0') + ':00';
+        }
+    }
+
+    function toggleManual(device) {
+        MANUAL_STATE[device] = !MANUAL_STATE[device];
+        updateManualButtonsVisuals();
+    }
+
+    function updateManualButtonsVisuals() {
+        ['fan','pump','light','heater'].forEach(d => {
+            const btn = document.getElementById('btn-' + d);
+            if (btn) btn.className = 'act-btn' + (MANUAL_STATE[d] ? ' active' : '');
+        });
+    }
+
+    async function guardarCanvis() {
+        const settings = {
+            mode:         currentMode,
+            planta_activa: document.getElementById('plant-selector').value,
+            manual_fan:    MANUAL_STATE.fan,
+            manual_pump:   MANUAL_STATE.pump,
+            manual_light:  MANUAL_STATE.light,
+            manual_heater: MANUAL_STATE.heater,
+            t_min:   parseFloat(document.getElementById('set-tmin').value),
+            t_max:   parseFloat(document.getElementById('set-tmax').value),
+            soil_min: parseInt(document.getElementById('set-soil').value),
+            l_on:   document.getElementById('set-lon').value,
+            l_off:  document.getElementById('set-loff').value
+        };
+        const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass, settings })
+        });
+        if (res.ok) {
+            const btn = document.querySelector('.btn-save');
+            btn.innerText = '✓ Guardat!';
+            setTimeout(() => { btn.innerText = 'Guardar configuració →'; }, 2000);
+        } else { alert('Error guardant la configuració'); }
+    }
+
+    // ── CHARTS ────────────────────────────────────────────────────────
+    const CHART_COLORS = {
+        temp:  '#e05252',
+        hum:   '#4da8da',
+        soil:  '#3ddc84',
+        light: '#f0a500'
+    };
+
+    function crearGrafica(canvasId, colorKey) {
+        const ctx   = document.getElementById(canvasId).getContext('2d');
+        const color = CHART_COLORS[colorKey];
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    borderColor: color,
+                    backgroundColor: color + '18',
+                    borderWidth: 1.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHitRadius: 12
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: {
+                    backgroundColor: '#111815',
+                    borderColor: '#1f2e26', borderWidth: 1,
+                    titleColor: '#6b8f78', bodyColor: color,
+                    padding: 10
+                }},
+                scales: {
+                    x: { grid: { color: '#1a2620' }, ticks: { maxTicksLimit: 5, color: '#3d5446' } },
+                    y: { grid: { color: '#1a2620' }, ticks: { color: '#3d5446' } }
                 }
+            }
+        });
+    }
+
+    function actualitzarGrafiques(historic) {
+        if (!historic || historic.length === 0) return;
+        const rev = [...historic].reverse();
+        const labels = rev.map(h => {
+            const d = new Date(h.data_hora.replace(' ', 'T') + 'Z');
+            return d.getHours() + ':' + d.getMinutes().toString().padStart(2,'0');
+        });
+
+        if (!charts.temp)  charts.temp  = crearGrafica('chartTemp',  'temp');
+        if (!charts.hum)   charts.hum   = crearGrafica('chartHum',   'hum');
+        if (!charts.soil)  charts.soil  = crearGrafica('chartSoil',  'soil');
+        if (!charts.light) charts.light = crearGrafica('chartLight', 'light');
+
+        const update = (chart, values) => {
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = values;
+            chart.update('none');
+        };
+        update(charts.temp,  rev.map(h => h.temp));
+        update(charts.hum,   rev.map(h => h.hum));
+        update(charts.soil,  rev.map(h => h.hum_sol));
+        update(charts.light, rev.map(h => h.llum || 0));
+    }
+
+    // ── LOGS ──────────────────────────────────────────────────────────────
+    let logsHidden = false;
+
+    async function refreshLogs() {
+        if (logsHidden) return;
+        try {
+            const res = await fetch('/api/logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass })
             });
+            if (!res.ok) return;
+            const logs = await res.json();
+            renderLogs(logs);
+        } catch (e) { console.error('Error logs:', e); }
+    }
+
+    function renderLogs(logs) {
+        const container = document.getElementById('logs-container');
+        if (!logs || logs.length === 0) {
+            container.innerHTML = '<div class="log-empty">Cap registre disponible</div>';
+            return;
         }
+        container.innerHTML = logs.map(log => {
+            const ts  = formatLogDate(log.data_hora);
+            const msg = log.missatge || '';
+            const cls = msg.includes('⚠️') || msg.includes('crítica') ? 'warn'
+                      : msg.includes('❌') ? 'error' : '';
+            const origen = log.origen || 'hivernacle';
+            const badge  = origen === 'web'
+                ? '<span class="log-badge log-badge-web">WEB</span>'
+                : '<span class="log-badge log-badge-esp">HIVERNACLE</span>';
+            return `<div class="log-row">
+                <span class="log-ts">${ts}</span>
+                ${badge}
+                <span class="log-msg ${cls}">${msg}</span>
+            </div>`;
+        }).join('');
+    }
 
-        function actualitzarGrafiques(historic) {
-            if(!historic || historic.length === 0) return;
-            
-            // Les dades venen de la més nova a la més vella. Les girem per la gràfica.
-            const labels = historic.map(h => {
-                // Arreglem l'hora de l'històric a UTC
-                const dataHistUTC = h.data_hora.replace(' ', 'T') + 'Z';
-                const d = new Date(dataHistUTC);
-                return d.getHours() + ":" + d.getMinutes().toString().padStart(2, '0');
-            }).reverse();
-            
-            const dadesTemp = historic.map(h => h.temp).reverse();
-            const dadesHum = historic.map(h => h.hum).reverse();
-            const dadesSoil = historic.map(h => h.hum_sol).reverse();
-            const dadesLight = historic.map(h => h.llum || 0).reverse(); // Afegida gestió de nuls
+    function formatLogDate(raw) {
+        if (!raw) return '--';
+        const d = new Date(raw.replace(' ', 'T') + 'Z');
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} `
+             + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
 
-            // Inicialitzar gràfiques si no existeixen
-            if(!charts.temp) charts.temp = crearGrafica('chartTemp', 'Temp ºC', '#e74c3c');
-            if(!charts.hum) charts.hum = crearGrafica('chartHum', 'Humitat %', '#3498db');
-            if(!charts.soil) charts.soil = crearGrafica('chartSoil', 'Sòl %', '#8e44ad');
-            if(!charts.light) charts.light = crearGrafica('chartLight', 'Llum', '#f1c40f');
-
-            // Actualitzar dades
-            charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = dadesTemp; charts.temp.update();
-            charts.hum.data.labels = labels; charts.hum.data.datasets[0].data = dadesHum; charts.hum.update();
-            charts.soil.data.labels = labels; charts.soil.data.datasets[0].data = dadesSoil; charts.soil.update();
-            charts.light.data.labels = labels; charts.light.data.datasets[0].data = dadesLight; charts.light.update();
-        }
-    </script>
+    function netejarLogsVisuals() {
+        logsHidden = true;
+        document.getElementById('logs-container').innerHTML =
+            '<div class="log-empty">Vista neta. Els nous logs apareixeran al pròxim refresc.</div>';
+        setTimeout(() => { logsHidden = false; }, 300000);
+    }
+</script>
 </body>
 </html>
