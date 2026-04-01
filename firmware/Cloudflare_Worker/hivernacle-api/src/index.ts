@@ -260,4 +260,22 @@ export default {
 
 		return env.ASSETS.fetch(request);
 	},
+
+    async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+        ctx.waitUntil(netejarRegistresAntics(env));
+    }
 };
+
+async function netejarRegistresAntics(env: Env) {
+  // Esborra lectures amb més de 5 dies
+  const lecturesResult = await env.DB.prepare(`
+    DELETE FROM lectures WHERE data_hora < datetime('now', '-5 days')
+  `).run();
+
+  // Esborra logs amb més de 5 dies
+  const logsResult = await env.DB.prepare(`
+    DELETE FROM logs WHERE data_hora < datetime('now', '-5 days')
+  `).run();
+
+  console.log(`Neteja diària: ${lecturesResult.meta.changes} lectures i ${logsResult.meta.changes} logs eliminats`);
+}
