@@ -13,7 +13,7 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.1.8";
+const char* FIRMWARE_VERSION = "0.1.9";
 
 // --- CONFIGURACIÓ NÚVOL ---
 const char* DEVICE_ID = "H_POL";
@@ -144,6 +144,17 @@ const long SEND_DATA_TO_CLOUD    = 60000;
 const long GET_CONFIG_FROM_CLOUD = 5000;
 const long PID_INTERVAL          = 10000;  // PID cada 10 s
 
+// ── TEMPORITZADORS DE REG ────────────────────────────────────────────────────
+// AUTO:   5 s regant, 2 min d'espera perquè l'aigua arribi fins al sensor
+// MANUAL: pols únic de 5 s, s'apaga sol
+const long WATERING_DURATION        = 5000;
+const long WATERING_PAUSE           = 120000;
+const long MANUAL_WATERING_DURATION = 5000;
+bool          wateringActive    = false;
+unsigned long wateringStart     = 0;
+unsigned long lastWateringEnd   = 0;
+bool          manualPulseActive = false;
+
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 int parseHour(String timeStr) {
   return (timeStr.length() >= 2) ? timeStr.substring(0, 2).toInt() : 8;
@@ -160,6 +171,23 @@ void sendLog(const String& missatge) {
   doc["missatge"]  = missatge;
   String body; serializeJson(doc, body);
   Serial.print("📝 Log: "); Serial.println(missatge);
+  http.POST(body);
+  http.end();
+}
+
+// Notifica al Worker que apagui manual_pump = 0 a la BBDD.
+// Aplica PWM al ventilador i al calefactor. Garanteix que mai estan els dos encesos.
+// La web ho veurà al proper refresc i desactivarà el botó automàticament.
+void resetPumpCloud() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  http.begin(String(serverUrl) + "/actuator-reset");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Auth-Token", API_TOKEN);
+  JsonDocument doc;
+  doc["device_id"] = DEVICE_ID;
+  doc["actuator"]  = "pump";
+  String body; serializeJson(doc, body);
   http.POST(body);
   http.end();
 }
@@ -286,8 +314,26 @@ void runControl() {
   // ── MANUAL ────────────────────────────────────────────────────────────────
   if (config.mode == "MANUAL") {
     setPWM(config.man_fan ? 255 : 0, config.man_heater ? 255 : 0);
-    digitalWrite(PIN_PUMP_LED, config.man_pump  ? HIGH : LOW);
     digitalWrite(PIN_GROW_LED, config.man_light ? HIGH : LOW);
+
+    // Pols de reg manual: quan man_pump passa a true, rega 5 s i s'apaga sol
+    if (config.man_pump && !manualPulseActive) {
+      manualPulseActive = true;
+      wateringActive    = true;
+      wateringStart     = millis();
+      digitalWrite(PIN_PUMP_LED, HIGH);
+      sendLog("💧 Reg manual iniciat (5 s)");
+    }
+    if (manualPulseActive && wateringActive) {
+      if (millis() - wateringStart >= MANUAL_WATERING_DURATION) {
+        wateringActive    = false;
+        manualPulseActive = false;
+        config.man_pump   = false;  // evita re-trigger fins que la web enviï un nou true
+        digitalWrite(PIN_PUMP_LED, LOW);
+        sendLog("💧 Reg manual acabat");
+        resetPumpCloud();           // avisa al Worker → la web desactiva el botó
+      }
+    }
     return;
   }
 
@@ -332,15 +378,36 @@ void runControl() {
     }
   }
 
-  // ── AUTO: Reg (on/off) ────────────────────────────────────────────────────
-  bool newPump = (currentSoilPct < config.target_soil_min);
-  if (newPump != prevState.pump) {
-    sendLog(newPump
-      ? "💧 Sòl sec (" + String(currentSoilPct) + "%). Activant bomba"
-      : "💧 Humitat sòl OK. Aturant bomba");
-    prevState.pump = newPump;
+  // ── AUTO: Reg per polsos (5 s ON → 2 min pausa → repetir si cal) ─────────
+  unsigned long now = millis();
+ 
+  if (wateringActive) {
+    // Bomba encesa: comprovem si ja han passat 5 s
+    if (now - wateringStart >= WATERING_DURATION) {
+      wateringActive  = false;
+      lastWateringEnd = now;
+      prevState.pump  = false;
+      digitalWrite(PIN_PUMP_LED, LOW);
+      sendLog("💧 Cicle de reg acabat. Esperant " + String(WATERING_PAUSE / 1000) + " s");
+    }
+  } else {
+    bool soilDry    = (currentSoilPct < config.target_soil_min);
+    bool pauseEnded = (lastWateringEnd == 0 || (now - lastWateringEnd >= WATERING_PAUSE));
+ 
+    if (soilDry && pauseEnded) {
+      // Sòl sec i pausa acabada: nou cicle de 5 s
+      wateringActive = true;
+      wateringStart  = now;
+      prevState.pump = true;
+      digitalWrite(PIN_PUMP_LED, HIGH);
+      sendLog("💧 Sòl sec (" + String(currentSoilPct) + "%). Iniciant cicle de reg (5 s)");
+    } else if (!soilDry && prevState.pump) {
+      // Sòl ja humit: reiniciem el comptador de pausa
+      lastWateringEnd = 0;
+      prevState.pump  = false;
+      sendLog("💧 Humitat sòl OK (" + String(currentSoilPct) + "%). Reg aturat");
+    }
   }
-  digitalWrite(PIN_PUMP_LED, newPump ? HIGH : LOW);
 
   // ── AUTO: Llum (on/off) ───────────────────────────────────────────────────
   bool isDayTime = (currentHour >= config.hour_on && currentHour < config.hour_off);
