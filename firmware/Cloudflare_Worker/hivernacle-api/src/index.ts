@@ -210,8 +210,8 @@ export default {
         if (url.pathname === '/api/check-update') {
             const reqData = await request.json();
             const clientVersion = reqData.current_version;
-            const LATEST_VERSION = "0.1.8";
-            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.8/firmware.bin"; 
+            const LATEST_VERSION = "0.1.9";
+            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.9/firmware.bin"; 
 
             if (clientVersion !== LATEST_VERSION) {
                 return new Response(JSON.stringify({ update_available: true, new_version: LATEST_VERSION, bin_url: BIN_URL }), { headers: { 'Content-Type': 'application/json' } });
