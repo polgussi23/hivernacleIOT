@@ -240,7 +240,7 @@ export default {
             }
         }
 
-        // ── NOU: LLEGIR LOGS (GET /api/logs) ─────────────────────────────────
+        // ── LLEGIR LOGS (GET /api/logs) ─────────────────────────────────
         // La web envia: POST { device_id, password }
         if (url.pathname === '/api/logs' && request.method === 'POST') {
             try {
@@ -255,6 +255,28 @@ export default {
                 return new Response(JSON.stringify(logs.results), { headers: { "Content-Type": "application/json", ...corsHeaders } });
             } catch (e) {
                 return new Response("Error Logs: " + e, { status: 500 });
+            }
+        }
+
+        if (url.pathname === '/api/actuator-reset' && request.method === 'POST') {
+            try {
+                const token = request.headers.get("X-Auth-Token");
+                const data: any = await request.json();
+                const valid = await env.DB.prepare(
+                    "SELECT 1 FROM hivernacles WHERE device_id = ? AND api_token = ?"
+                ).bind(data.device_id, token).first();
+                if (!valid) return new Response("Token invàlid", { status: 403 });
+ 
+                if (data.actuator === "pump") {
+                    await env.DB.prepare(
+                        "UPDATE hivernacles SET manual_pump = 0 WHERE device_id = ?"
+                    ).bind(data.device_id).run();
+                    ctx.waitUntil(insertLog(env, data.device_id, "💧 Bomba desactivada automàticament (fi de pols de 5 s)", "hivernacle"));
+                }
+ 
+                return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+            } catch (e) {
+                return new Response("Error actuator-reset: " + e, { status: 500 });
             }
         }
 
