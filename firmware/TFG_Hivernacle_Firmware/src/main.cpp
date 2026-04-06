@@ -13,7 +13,7 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.1.10";
+const char* FIRMWARE_VERSION = "0.1.11";
 
 // --- CONFIGURACIÓ NÚVOL ---
 const char* DEVICE_ID = "H_POL";
