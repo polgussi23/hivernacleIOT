@@ -13,7 +13,7 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.1.9";
+const char* FIRMWARE_VERSION = "0.1.10";
 
 // --- CONFIGURACIÓ NÚVOL ---
 const char* DEVICE_ID = "H_POL";
@@ -39,6 +39,8 @@ const int PWM_BITS      = 8;     // resolució 0-255
 const int PIN_SOIL    = 34;
 const int AIR_VALUE   = 3500;
 const int WATER_VALUE = 1200;
+
+float smoothedSoil = -1.0;
 
 // ── STRUCT PID ────────────────────────────────────────────────────────────────
 struct PIDController {
@@ -379,43 +381,64 @@ void runControl() {
   }
 
   // ── AUTO: Reg per polsos (5 s ON → 2 min pausa → repetir si cal) ─────────
+  static int estatReg = 0; // 0: ESPERANT, 1: REGANT, 2: FILTRANT
   unsigned long now = millis();
- 
-  if (wateringActive) {
-    // Bomba encesa: comprovem si ja han passat 5 s
-    if (now - wateringStart >= WATERING_DURATION) {
-      wateringActive  = false;
-      lastWateringEnd = now;
-      prevState.pump  = false;
-      digitalWrite(PIN_PUMP_LED, LOW);
-      sendLog("💧 Cicle de reg acabat. Esperant " + String(WATERING_PAUSE / 1000) + " s");
-    }
-  } else {
-    bool soilDry    = (currentSoilPct < config.target_soil_min);
-    bool pauseEnded = (lastWateringEnd == 0 || (now - lastWateringEnd >= WATERING_PAUSE));
- 
-    if (soilDry && pauseEnded) {
-      // Sòl sec i pausa acabada: nou cicle de 5 s
-      wateringActive = true;
-      wateringStart  = now;
-      prevState.pump = true;
-      digitalWrite(PIN_PUMP_LED, HIGH);
-      sendLog("💧 Sòl sec (" + String(currentSoilPct) + "%). Iniciant cicle de reg (5 s)");
-    } else if (!soilDry && prevState.pump) {
-      // Sòl ja humit: reiniciem el comptador de pausa
-      lastWateringEnd = 0;
-      prevState.pump  = false;
-      sendLog("💧 Humitat sòl OK (" + String(currentSoilPct) + "%). Reg aturat");
-    }
+
+  switch (estatReg) {
+    case 0: // ESTAT: ESPERANT (Monitoritzant el sòl)
+      if (currentSoilPct < config.target_soil_min) {
+        estatReg = 1;
+        wateringStart = now;
+        digitalWrite(PIN_PUMP_LED, HIGH);
+        sendLog("💧 Sòl sec (" + String(currentSoilPct) + "%). Iniciant reg.");
+      }
+      break;
+
+    case 1: // ESTAT: REGANT (Pols de 5 segons)
+      if (now - wateringStart >= WATERING_DURATION) {
+        digitalWrite(PIN_PUMP_LED, LOW);
+        lastWateringEnd = now;
+        estatReg = 2;
+        sendLog("⏳ Pols acabat. Esperant que l'aigua filtri...");
+      }
+      break;
+
+    case 2: // ESTAT: FILTRANT (Pausa de 2 minuts)
+      if (now - lastWateringEnd >= WATERING_PAUSE) {
+        // Un cop passada la pausa, mirem si ja n'hi ha prou o cal tornar-hi
+        if (currentSoilPct >= config.target_soil_min) {
+          sendLog("✅ Humitat correcte (" + String(currentSoilPct) + "%). Reg finalitzat.");
+          estatReg = 0; // Tornem a l'inici
+        } else {
+          // Si encara està sec, tornem a regar directament
+          estatReg = 1;
+          wateringStart = now;
+          digitalWrite(PIN_PUMP_LED, HIGH);
+          sendLog("💧 Encara està sec (" + String(currentSoilPct) + "%). Nou pols de reg.");
+        }
+      }
+      break;
   }
 
   // ── AUTO: Llum (on/off) ───────────────────────────────────────────────────
   bool isDayTime = (currentHour >= config.hour_on && currentHour < config.hour_off);
-  bool newLight  = (isDayTime && currentLux < 250);
+  bool newLight = prevState.light; // Per defecte, ens quedem com estàvem
+
+  if (isDayTime) {
+    if (!prevState.light && currentLux < 250) {
+      newLight = true; // És de dia i s'ha fet fosc: ENCEM
+    } else if (prevState.light && currentLux > 800) { 
+      // ^^^ ATENCIÓ: Ajusta aquest 800. Ha de ser MÉS GRAN que els lux que donen els teus LEDs.
+      newLight = false; // És de dia, però hi ha moltíssima llum natural: APAGUEM
+    }
+  } else {
+    newLight = false; // És de nit, sempre apagat
+  }
+
   if (newLight != prevState.light) {
     sendLog(newLight
-      ? "💡 Poca llum (" + String(currentLux, 0) + " lx). Activant llums"
-      : "💡 Llum correcte. Desactivant llums");
+      ? "💡 Poca llum natural. Activant LEDs de creixement."
+      : "💡 Llum natural suficient (o és de nit). Desactivant LEDs.");
     prevState.light = newLight;
   }
   digitalWrite(PIN_GROW_LED, newLight ? HIGH : LOW);
@@ -463,7 +486,10 @@ void loop() {
 
   if (bmeFound)  { currentTemp = bme.readTemperature(); currentHum = bme.readHumidity(); }
   if (vemlFound)   currentLux  = veml.readLux();
-  currentSoilPct = constrain(map(analogRead(PIN_SOIL), AIR_VALUE, WATER_VALUE, 0, 100), 0, 100);
+  int rawSoil = constrain(map(analogRead(PIN_SOIL), AIR_VALUE, WATER_VALUE, 0, 100), 0, 100);
+  if (smoothedSoil < 0) smoothedSoil = rawSoil; // Inicialitzem la primera vegada
+  smoothedSoil = (rawSoil * 0.05) + (smoothedSoil * 0.95); // Filtre que suavitza els pics
+  currentSoilPct = (int)smoothedSoil;
 
   if (millis() - lastCloudReceived > GET_CONFIG_FROM_CLOUD) {
     getConfigFromCloud();
