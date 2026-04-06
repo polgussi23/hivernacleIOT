@@ -47,10 +47,13 @@ struct PIDController {
   // Kp: quanta força apliquem per cada grau d'error
   // Ki: corregeix errors persistents petits (steady-state error)
   // Kd: frena la resposta si l'error canvia ràpid (evita overshoot)
-  // ─── Sintonitza aquests valors amb el teu hivernacle real ───
   float Kp = 20.0f;
   float Ki =  0.08f;
   float Kd =  5.0f;
+
+  // NOU: Multiplicador per al ventilador.
+  // Si val 3.0, el ventilador rebrà el TRIPLE de potència que el calefactor davant del mateix error.
+  float cooling_multiplier = 3.0f; 
 
   float integral   = 0.0f;
   float prev_error = 0.0f;
@@ -66,10 +69,7 @@ struct PIDController {
     last_time  = 0;
   }
 
-  // Retorna un valor entre -255 i +255:
-  //   > 0 → calor → calefactor
-  //   < 0 → fred  → ventilador
-  //   = 0 → temperatura correcta, tot apagat
+  // Retorna un valor entre -255 i +255
   float compute(float setpoint, float current) {
     unsigned long now = millis();
 
@@ -89,15 +89,21 @@ struct PIDController {
     float error      = setpoint - current;
     float derivative = (error - prev_error) / dt;
 
+    // APLICACIÓ DE L'ASIMETRIA:
+    // Si l'error és negatiu (fa massa calor), activem el multiplicador
+    float mult = (error < 0) ? cooling_multiplier : 1.0f;
+
     // Anti-windup: acumulem integral NOMÉS si la sortida no és saturada
-    float tentative = Kp * error + Ki * (integral + error * dt) + Kd * derivative;
+    float tentative = (Kp * error + Ki * (integral + error * dt) + Kd * derivative) * mult;
     if (tentative > OUT_MIN && tentative < OUT_MAX) {
       integral += error * dt;
     }
 
     prev_error = error;
 
-    return constrain(Kp * error + Ki * integral + Kd * derivative, OUT_MIN, OUT_MAX);
+    // Retornem el valor amb el multiplicador aplicat
+    float final_output = (Kp * error + Ki * integral + Kd * derivative) * mult;
+    return constrain(final_output, OUT_MIN, OUT_MAX);
   }
 } pid;
 // ─────────────────────────────────────────────────────────────────────────────
@@ -288,13 +294,13 @@ void getConfigFromCloud() {
         if (config.man_light  != prevState.light)
           logLight  = String("💡 Llums ")       + (config.man_light  ? "activades" : "desactivades") + " (mode manual)";
         if (config.man_heater != prevState.heater)
-          logHeater = String("🔥 Calefacció ")  + (config.man_heater ? "activada"  : "desactivada")  + " (mode manual)";
-      }
+         logHeater = String("🔥 Calefacció ")  + (config.man_heater ? "activada"  : "desactivada")  + " (mode manual)";
 
-      prevState.fan    = config.man_fan;
-      prevState.pump   = config.man_pump;
-      prevState.light  = config.man_light;
-      prevState.heater = config.man_heater;
+        prevState.fan    = config.man_fan;
+        prevState.pump   = config.man_pump;
+        prevState.light  = config.man_light;
+        prevState.heater = config.man_heater;
+      }
     }
   }
 
