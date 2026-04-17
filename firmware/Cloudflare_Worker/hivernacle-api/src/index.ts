@@ -1,6 +1,6 @@
 export interface Env {
-	DB: D1Database;
-	ASSETS: Fetcher;
+    DB: D1Database;
+    ASSETS: Fetcher;
 }
 
 const corsHeaders = {
@@ -12,51 +12,107 @@ const corsHeaders = {
 const NTFY_TOPIC = "hivernacle-iot-gussi";
 
 async function enviarAlerta(missatge: string, tag: string = "warning") {
-	await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
-		method: "POST",
-		body: missatge,
-		headers: { "Tags": tag, "Title": "Alerta Hivernacle" }
-	});
+    await fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+        method: "POST",
+        body: missatge,
+        headers: { "Tags": tag, "Title": "Alerta Hivernacle" }
+    });
 }
 
 // ── HELPER: Inserir un log a la BBDD ─────────────────────────────────────────
 async function insertLog(env: Env, device_id: string, missatge: string, origen: string = 'hivernacle') {
-	await env.DB.prepare(
-		"INSERT INTO logs (device_id, missatge, origen) VALUES (?, ?, ?)"
-	).bind(device_id, missatge, origen).run();
+    await env.DB.prepare(
+        "INSERT INTO logs (device_id, missatge, origen) VALUES (?, ?, ?)"
+    ).bind(device_id, missatge, origen).run();
 }
 
 export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		const url = new URL(request.url);
+    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+        const url = new URL(request.url);
 
         if (request.method === "OPTIONS") {
             return new Response(null, { headers: corsHeaders });
         }
 
-		// --- LOGIN WEB ---
-		if (url.pathname === '/api/login' && request.method === 'POST') {
+        // --- REGISTRE USUARI (NOU) ---
+        if (url.pathname === '/api/register' && request.method === 'POST') {
             try {
-                const { device_id, password } = await request.json();
-                const user = await env.DB.prepare(
-                    "SELECT device_id, propietari FROM hivernacles WHERE device_id = ? AND password_web = ?"
-                ).bind(device_id, password).first();
+                const { user_name, password } = await request.json();
+                
+                // Comprovem si l'usuari ja existeix
+                const existeix = await env.DB.prepare("SELECT 1 FROM usuaris WHERE user_name = ?").bind(user_name).first();
+                if (existeix) {
+                    return new Response(JSON.stringify({ error: "L'usuari ja existeix" }), { status: 409, headers: corsHeaders });
+                }
+
+                await env.DB.prepare("INSERT INTO usuaris (user_name, password) VALUES (?, ?)").bind(user_name, password).run();
+                return new Response(JSON.stringify({ ok: true, msg: "Usuari creat correctament" }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+            } catch (e) { return new Response("Error Register", { status: 500, headers: corsHeaders }); }
+        }
+
+        // --- LOGIN WEB (MODIFICAT) ---
+        if (url.pathname === '/api/login' && request.method === 'POST') {
+            try {
+                const { user_name, password } = await request.json();
+                
+                // 1. Busquem l'usuari
+                const user: any = await env.DB.prepare(
+                    "SELECT user_id, user_name FROM usuaris WHERE user_name = ? AND password = ?"
+                ).bind(user_name, password).first();
+                
                 if (!user) {
                     return new Response(JSON.stringify({ error: "Credencials incorrectes" }), { status: 401, headers: corsHeaders });
                 }
-                return new Response(JSON.stringify(user), { headers: { "Content-Type": "application/json", ...corsHeaders } });
-            } catch (e) { return new Response("Error Login", { status: 500, headers: corsHeaders }); }
-		}
 
-        // --- PUJAR DADES (ESP32 -> NÚVOL) ---
+                // 2. Busquem els hivernacles d'aquest usuari
+                const hivernacles = await env.DB.prepare(
+                    "SELECT device_id FROM hivernacles WHERE propietari = ?"
+                ).bind(user.user_id).all();
+
+                return new Response(JSON.stringify({ 
+                    user_id: user.user_id, 
+                    user_name: user.user_name,
+                    hivernacles: hivernacles.results.map((h: any) => h.device_id) 
+                }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+                
+            } catch (e) { return new Response("Error Login", { status: 500, headers: corsHeaders }); }
+        }
+
+        // --- AFEGIR HIVERNACLE A UN USUARI ---
+        if (url.pathname === '/api/claim-hivernacle' && request.method === 'POST') {
+            try {
+                const { user_id, device_id } = await request.json();
+                
+                // 1. Busquem si l'hivernacle existeix
+                const hivernacle = await env.DB.prepare("SELECT propietari FROM hivernacles WHERE device_id = ?").bind(device_id).first();
+                
+                if (!hivernacle) {
+                    return new Response(JSON.stringify({ error: "L'hivernacle no existeix" }), { status: 404, headers: corsHeaders });
+                }
+
+                // 2. Comprovem que NO tingui ja un propietari assignat (per evitar robatoris)
+                if (hivernacle.propietari !== null && hivernacle.propietari !== "") {
+                     return new Response(JSON.stringify({ error: "Aquest hivernacle ja està vinculat a un altre usuari" }), { status: 403, headers: corsHeaders });
+                }
+
+                // 3. L'assignem a l'usuari
+                await env.DB.prepare("UPDATE hivernacles SET propietari = ? WHERE device_id = ?").bind(user_id, device_id).run();
+                return new Response(JSON.stringify({ ok: true, msg: "Hivernacle assignat correctament" }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+            } catch (e) { return new Response("Error Claim", { status: 500, headers: corsHeaders }); }
+        }
+
+        // --- PUJAR DADES (ESP32 -> NÚVOL) (MODIFICAT: JOIN AMB USUARIS) ---
         if (url.pathname === '/api/upload' && request.method === 'POST') {
             try {
                 const token = request.headers.get("X-Auth-Token");
                 const data: any = await request.json();
                 
-                const config = await env.DB.prepare(
-                    "SELECT * FROM hivernacles WHERE device_id = ? AND api_token = ?"
-                ).bind(data.device_id, token).first();
+                const config: any = await env.DB.prepare(`
+                    SELECT h.*, u.user_name 
+                    FROM hivernacles h 
+                    LEFT JOIN usuaris u ON h.propietari = u.user_id 
+                    WHERE h.device_id = ? AND h.api_token = ?
+                `).bind(data.device_id, token).first();
 
                 if (!config) return new Response("Error: Token ESP32 Invàlid", { status: 403 });
 
@@ -68,15 +124,15 @@ export default {
                     "UPDATE hivernacles SET ultima_connexio = CURRENT_TIMESTAMP WHERE device_id = ?"
                 ).bind(data.device_id).run();
 
-                // Alertes + log automàtic — només en mode AUTO
-                // En mode MANUAL l'usuari ja sap el que fa, no cal alertar
+                // Alertes + log automàtic (Utilitzant user_name)
                 if (config.mode_operacio === "AUTO") {
+                    const nomPropietari = config.user_name || "Usuari Desconegut";
                     if (data.temp > (config.target_temp_max + 2)) {
-                        ctx.waitUntil(enviarAlerta(`🔥 ALERTA: ${config.propietari}, temperatura crítica (${data.temp}ºC)!`, "fire"));
+                        ctx.waitUntil(enviarAlerta(`🔥 ALERTA: ${nomPropietari}, temperatura crítica (${data.temp}ºC) al dispositiu ${data.device_id}!`, "fire"));
                         ctx.waitUntil(insertLog(env, data.device_id, `⚠️ Temperatura crítica detectada: ${data.temp}ºC`, 'hivernacle'));
                     }
                     if (data.soil < (config.target_hum_sol_min - 5)) {
-                        ctx.waitUntil(enviarAlerta(`💧 ALERTA: ${config.propietari}, cal regar (${data.soil}%)!`, "droplet"));
+                        ctx.waitUntil(enviarAlerta(`💧 ALERTA: ${nomPropietari}, cal regar (${data.soil}%) al dispositiu ${data.device_id}!`, "droplet"));
                         ctx.waitUntil(insertLog(env, data.device_id, `⚠️ Humitat del sòl crítica: ${data.soil}%`, 'hivernacle'));
                     }
                 }
@@ -84,12 +140,10 @@ export default {
                 return new Response(JSON.stringify({ status: "ok" }), { 
                     status: 200, headers: { "Content-Type": "application/json" } 
                 });
-            } catch (e) {
-                return new Response("Error Upload: " + e, { status: 500 });
-            }
+            } catch (e) { return new Response("Error Upload: " + e, { status: 500 }); }
         }
 
-        // --- LLEGIR CONFIG (ESP32 -> NÚVOL) ---
+        // --- LLEGIR CONFIG (ESP32 -> NÚVOL) (SENSE CANVIS) ---
         if (url.pathname === '/api/config' && request.method === 'GET') {
             try {
                 const device_id = url.searchParams.get("device_id");
@@ -120,16 +174,14 @@ export default {
                 return new Response(JSON.stringify(respostaESP), { 
                     status: 200, headers: { "Content-Type": "application/json" } 
                 });
-            } catch (e) {
-                return new Response("Error Config: " + e, { status: 500 });
-            }
+            } catch (e) { return new Response("Error Config: " + e, { status: 500 }); }
         }
 
-        // --- ESTAT ACTUAL (WEB -> NÚVOL) ---
+        // --- ESTAT ACTUAL (WEB -> NÚVOL) (MODIFICAT PER USAR user_id) ---
         if (url.pathname === '/api/status' && request.method === 'POST') {
-            const { device_id, password } = await request.json();
-            const valid = await env.DB.prepare("SELECT 1 FROM hivernacles WHERE device_id = ? AND password_web = ?").bind(device_id, password).first();
-            if (!valid) return new Response("No autoritzat", { status: 401, headers: corsHeaders });
+            const { device_id, user_id } = await request.json();
+            const valid = await env.DB.prepare("SELECT 1 FROM hivernacles WHERE device_id = ? AND propietari = ?").bind(device_id, user_id).first();
+            if (!valid) return new Response("No autoritzat: L'hivernacle no et pertany", { status: 401, headers: corsHeaders });
 
             const lectura = await env.DB.prepare("SELECT * FROM lectures WHERE device_id = ? ORDER BY id DESC LIMIT 1").bind(device_id).first();
             const estat = await env.DB.prepare("SELECT * FROM hivernacles WHERE device_id = ?").bind(device_id).first();
@@ -138,13 +190,12 @@ export default {
             return new Response(JSON.stringify({ lectura, estat, historic: historic.results }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
         
-        // --- GUARDAR CONFIGURACIÓ (WEB -> NÚVOL) ---
+        // --- GUARDAR CONFIGURACIÓ (WEB -> NÚVOL) (MODIFICAT PER USAR user_id) ---
         if (url.pathname === '/api/settings' && request.method === 'POST') {
-             const { device_id, password, settings } = await request.json();
-             const valid = await env.DB.prepare("SELECT 1 FROM hivernacles WHERE device_id = ? AND password_web = ?").bind(device_id, password).first();
+             const { device_id, user_id, settings } = await request.json();
+             const valid = await env.DB.prepare("SELECT 1 FROM hivernacles WHERE device_id = ? AND propietari = ?").bind(device_id, user_id).first();
              if (!valid) return new Response("No autoritzat", { status: 401, headers: corsHeaders });
 
-             // Llegim l'estat anterior per saber QUÈ ha canviat
              const prev: any = await env.DB.prepare("SELECT mode_operacio, manual_fan, manual_pump, manual_light, manual_heater FROM hivernacles WHERE device_id = ?").bind(device_id).first();
 
              await env.DB.prepare(`
@@ -166,10 +217,7 @@ export default {
                  device_id
              ).run();
 
-             // ── LOGS AUTOMÀTICS DES DE LA WEB ────────────────────────────
              const logOps: Promise<any>[] = [];
-
-             // Canvi de mode
              if (prev && prev.mode_operacio !== settings.mode) {
                  const msg = settings.mode === "MANUAL"
                      ? "🎛️ Mode canviat a MANUAL des de la web"
@@ -177,7 +225,6 @@ export default {
                  logOps.push(insertLog(env, device_id, msg, 'web'));
              }
 
-             // Canvis d'actuadors manuals (només si s'entra a mode MANUAL)
              if (settings.mode === "MANUAL" && prev) {
                  const actuadors: [string, string, number][] = [
                      ["💨 Ventilador", "fan",    settings.manual_fan    ? 1 : 0],
@@ -195,23 +242,22 @@ export default {
              }
 
              if (logOps.length > 0) ctx.waitUntil(Promise.all(logOps));
-             // ─────────────────────────────────────────────────────────────
 
              return new Response(JSON.stringify({ msg: "Configuració guardada" }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
 
-        // --- LLISTA DE PLANTES ---
+        // --- LLISTA DE PLANTES (SENSE CANVIS) ---
         if (url.pathname === '/api/plants') {
             const plantes = await env.DB.prepare("SELECT * FROM biblioteca_plantes").all();
             return new Response(JSON.stringify(plantes.results), { headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
 
-        // --- CHECK FIRMWARE UPDATE ---
+        // --- CHECK FIRMWARE UPDATE (SENSE CANVIS) ---
         if (url.pathname === '/api/check-update') {
             const reqData = await request.json();
             const clientVersion = reqData.current_version;
-            const LATEST_VERSION = "0.1.9";
-            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.9/firmware.bin"; 
+            const LATEST_VERSION = "0.1.11";
+            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.1.11/firmware.bin"; 
 
             if (clientVersion !== LATEST_VERSION) {
                 return new Response(JSON.stringify({ update_available: true, new_version: LATEST_VERSION, bin_url: BIN_URL }), { headers: { 'Content-Type': 'application/json' } });
@@ -220,32 +266,25 @@ export default {
             }
         }
 
-        // ── NOU: LOG DES DE L'ESP32 (POST /api/log) ──────────────────────────
-        // L'ESP32 envia: { device_id, missatge } + header X-Auth-Token
+        // --- LOG DES DE L'ESP32 (POST /api/log) (SENSE CANVIS) ---
         if (url.pathname === '/api/log' && request.method === 'POST') {
             try {
                 const token = request.headers.get("X-Auth-Token");
                 const data: any = await request.json();
 
-                // Verificació d'identitat (mateixa que /api/upload)
-                const valid = await env.DB.prepare(
-                    "SELECT 1 FROM hivernacles WHERE device_id = ? AND api_token = ?"
-                ).bind(data.device_id, token).first();
+                const valid = await env.DB.prepare("SELECT 1 FROM hivernacles WHERE device_id = ? AND api_token = ?").bind(data.device_id, token).first();
                 if (!valid) return new Response("Token invàlid", { status: 403 });
 
                 await insertLog(env, data.device_id, data.missatge);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
-            } catch (e) {
-                return new Response("Error Log: " + e, { status: 500 });
-            }
+            } catch (e) { return new Response("Error Log: " + e, { status: 500 }); }
         }
 
-        // ── LLEGIR LOGS (GET /api/logs) ─────────────────────────────────
-        // La web envia: POST { device_id, password }
+        // --- LLEGIR LOGS (GET /api/logs) (MODIFICAT PER USAR user_id) ---
         if (url.pathname === '/api/logs' && request.method === 'POST') {
             try {
-                const { device_id, password } = await request.json();
-                const valid = await env.DB.prepare("SELECT 1 FROM hivernacles WHERE device_id = ? AND password_web = ?").bind(device_id, password).first();
+                const { device_id, user_id } = await request.json();
+                const valid = await env.DB.prepare("SELECT 1 FROM hivernacles WHERE device_id = ? AND propietari = ?").bind(device_id, user_id).first();
                 if (!valid) return new Response("No autoritzat", { status: 401, headers: corsHeaders });
 
                 const logs = await env.DB.prepare(
@@ -253,11 +292,10 @@ export default {
                 ).bind(device_id).all();
 
                 return new Response(JSON.stringify(logs.results), { headers: { "Content-Type": "application/json", ...corsHeaders } });
-            } catch (e) {
-                return new Response("Error Logs: " + e, { status: 500 });
-            }
+            } catch (e) { return new Response("Error Logs: " + e, { status: 500 }); }
         }
 
+        // --- ACTUATOR RESET (SENSE CANVIS) ---
         if (url.pathname === '/api/actuator-reset' && request.method === 'POST') {
             try {
                 const token = request.headers.get("X-Auth-Token");
@@ -266,22 +304,20 @@ export default {
                     "SELECT 1 FROM hivernacles WHERE device_id = ? AND api_token = ?"
                 ).bind(data.device_id, token).first();
                 if (!valid) return new Response("Token invàlid", { status: 403 });
- 
+
                 if (data.actuator === "pump") {
                     await env.DB.prepare(
                         "UPDATE hivernacles SET manual_pump = 0 WHERE device_id = ?"
                     ).bind(data.device_id).run();
                     ctx.waitUntil(insertLog(env, data.device_id, "💧 Bomba desactivada automàticament (fi de pols de 5 s)", "hivernacle"));
                 }
- 
+
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
-            } catch (e) {
-                return new Response("Error actuator-reset: " + e, { status: 500 });
-            }
+            } catch (e) { return new Response("Error actuator-reset: " + e, { status: 500 }); }
         }
 
-		return env.ASSETS.fetch(request);
-	},
+        return env.ASSETS.fetch(request);
+    },
 
     async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
         ctx.waitUntil(netejarRegistresAntics(env));
@@ -289,12 +325,10 @@ export default {
 };
 
 async function netejarRegistresAntics(env: Env) {
-  // Esborra lectures amb més de 5 dies
   const lecturesResult = await env.DB.prepare(`
     DELETE FROM lectures WHERE data_hora < datetime('now', '-5 days')
   `).run();
 
-  // Esborra logs amb més de 5 dies
   const logsResult = await env.DB.prepare(`
     DELETE FROM logs WHERE data_hora < datetime('now', '-5 days')
   `).run();

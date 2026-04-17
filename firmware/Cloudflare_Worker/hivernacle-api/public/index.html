@@ -36,7 +36,7 @@
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            overflow-x: hidden;
+            overflow: hidden; /* Prevent body scroll due to flex layout */
         }
 
         body::before {
@@ -46,11 +46,12 @@
             opacity: 0.4;
         }
 
+        /* --- LOGIN & REGISTRE --- */
         #login-screen {
             display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; position: relative; z-index: 1;
+            min-height: 100vh; position: relative; z-index: 1; overflow-y: auto; padding: 20px;
         }
-        .login-wrap { width: 100%; max-width: 400px; padding: 20px; }
+        .login-wrap { width: 100%; max-width: 400px; }
         .login-logo { text-align: center; margin-bottom: 36px; }
         .login-logo .icon {
             display: inline-flex; align-items: center; justify-content: center;
@@ -61,6 +62,7 @@
         .login-logo h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
         .login-logo p { font-size: 0.8rem; color: var(--text2); font-family: var(--mono); margin-top: 4px; }
         .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; }
+        .login-box h2 { font-size: 1.1rem; margin-bottom: 20px; text-align: center; }
         .field { margin-bottom: 16px; }
         .field label { display: block; font-size: 0.72rem; font-family: var(--mono); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
         .field input {
@@ -71,6 +73,7 @@
             outline: none; transition: border-color .2s, box-shadow .2s;
         }
         .field input:focus { border-color: var(--green-dim); box-shadow: 0 0 0 3px var(--green-glow); }
+        
         .btn-primary {
             width: 100%; padding: 13px;
             background: var(--green); color: #061008;
@@ -81,24 +84,71 @@
         }
         .btn-primary:hover { opacity: 0.9; }
         .btn-primary:active { transform: scale(0.99); }
-        #login-error { text-align: center; color: var(--red); font-size: 0.8rem; font-family: var(--mono); margin-top: 12px; display: none; }
+        
+        .btn-text {
+            display: block; width: 100%; margin-top: 16px;
+            background: none; border: none; color: var(--text2);
+            font-family: var(--sans); font-size: 0.8rem; text-decoration: underline;
+            cursor: pointer; transition: color .2s;
+        }
+        .btn-text:hover { color: var(--green); }
 
-        #dashboard { display: none; position: relative; z-index: 1; }
+        #auth-feedback { text-align: center; font-size: 0.8rem; font-family: var(--mono); margin-top: 12px; display: none; }
+
+        /* --- DASHBOARD LAYOUT --- */
+        #dashboard { display: none; position: relative; z-index: 1; height: 100vh; }
+        .dashboard-layout { display: flex; width: 100%; height: 100%; }
+
+        /* --- SIDEBAR --- */
+        .sidebar-overlay { display: none; }
+        .sidebar {
+            width: 260px; background: rgba(11,15,14,0.95);
+            border-right: 1px solid var(--border); display: flex; flex-direction: column;
+            padding: 24px 16px; flex-shrink: 0; z-index: 1000;
+        }
+        .sidebar-header {
+            font-size: 0.75rem; font-family: var(--mono); color: var(--text2);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; padding: 0 8px;
+        }
+        .hivernacles-list {
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;
+            scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+        }
+        .hiv-item {
+            padding: 12px 16px; background: transparent; border: 1px solid transparent;
+            border-radius: var(--radius); color: var(--text); cursor: pointer;
+            transition: all .2s; font-family: var(--mono); font-size: 0.85rem; text-align: left;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .hiv-item::before { content: '🌱'; opacity: 0.5; }
+        .hiv-item:hover { background: var(--surface); border-color: var(--border2); }
+        .hiv-item.active { background: var(--green-glow); border-color: var(--green-dim); color: var(--green); }
+        .hiv-item.active::before { opacity: 1; }
+
+        .btn-secondary {
+            width: 100%; padding: 11px; background: transparent;
+            border: 1px dashed var(--border2); border-radius: var(--radius);
+            color: var(--text2); font-family: var(--sans); font-size: 0.85rem;
+            cursor: pointer; transition: all .2s; margin-top: auto;
+        }
+        .btn-secondary:hover { border-color: var(--green); color: var(--green); }
+
+        /* --- MAIN DASHBOARD CONTENT --- */
+        .dashboard-main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
 
         .topbar {
             position: sticky; top: 0; z-index: 100;
             background: rgba(11,15,14,0.85); backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-            padding: 0 32px;
+            border-bottom: 1px solid var(--border); padding: 0 32px;
             display: flex; align-items: center; justify-content: space-between;
-            height: 60px; gap: 12px;
+            height: 60px; flex-shrink: 0;
         }
-        @media (max-width: 640px) {
-            .topbar { padding: 0 14px; }
-            .version { display: none; }
-            .user-chip { display: none; }
-            .topbar-left { gap: 10px; }
+        
+        .mobile-menu-btn {
+            display: none; background: none; border: none; color: var(--text);
+            font-size: 1.5rem; cursor: pointer; padding: 0 10px 0 0; margin-right: 10px;
         }
+
         .topbar-left { display: flex; align-items: center; gap: 20px; }
         .topbar-brand { font-size: 0.95rem; font-weight: 700; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px; }
         .topbar-brand span { color: var(--green); }
@@ -114,8 +164,9 @@
         .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
         .status-pill.online .status-dot { animation: pulse-dot 2s infinite; }
         @keyframes pulse-dot { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.5; transform:scale(0.7); } }
+        
         .topbar-right { display: flex; align-items: center; gap: 12px; }
-        .user-chip { font-family: var(--mono); font-size: 0.78rem; color: var(--text2); }
+        .user-chip { font-family: var(--mono); font-size: 0.78rem; color: var(--text2); white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 100px; }
         .btn-logout {
             padding: 7px 14px; background: transparent;
             border: 1px solid var(--border2); border-radius: var(--radius);
@@ -124,12 +175,15 @@
         }
         .btn-logout:hover { border-color: var(--red); color: var(--red); }
 
-        .main { padding: 28px 32px; max-width: 1280px; margin: 0 auto; }
-        @media (max-width: 640px) { .main { padding: 14px; } }
+        .main { padding: 28px 32px; max-width: 1280px; width: 100%; margin: 0 auto; flex: 1; }
+        
+        #empty-state { display: none; text-align: center; padding: 60px 20px; color: var(--text2); }
+        #empty-state h2 { margin-bottom: 10px; color: var(--text); }
 
+        #main-content { display: block; }
+
+        /* --- SENSORS & CONTROLS --- */
         .sensors-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-        @media (max-width: 640px) { .sensors-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
-
         .sensor-card {
             background: var(--surface); border: 1px solid var(--border);
             border-radius: var(--radius-lg); padding: 22px 22px 18px;
@@ -146,28 +200,24 @@
         .sensor-unit { font-size: 1rem; color: var(--text2); }
 
         .bottom-grid { display: grid; grid-template-columns: minmax(0, 380px) 1fr; gap: 14px; }
-        @media (max-width: 900px) { .bottom-grid { grid-template-columns: 1fr; } }
 
         .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
         .panel-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-        .panel-header h3 { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.2px; }
-        .panel-header .ph-icon { font-size: 1rem; opacity: 0.7; }
+        .panel-header h3 { font-size: 0.85rem; font-weight: 600; }
         .panel-body { padding: 20px 22px; }
 
         .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 0.7rem; font-family: var(--mono); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; }
-        .form-group select, .form-group input[type="number"], .form-group input[type="time"] {
-            width: 100%; padding: 9px 12px;
-            background: var(--bg); border: 1px solid var(--border2);
-            border-radius: var(--radius); color: var(--text);
-            font-family: var(--mono); font-size: 0.85rem;
-            outline: none; transition: border-color .2s, box-shadow .2s; appearance: none;
+        .form-group label { display: block; font-size: 0.7rem; font-family: var(--mono); color: var(--text2); text-transform: uppercase; margin-bottom: 7px; }
+        .form-group select, .form-group input {
+            width: 100%; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border2);
+            border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 0.85rem;
+            outline: none; transition: border-color .2s; appearance: none;
         }
         .form-group select:focus, .form-group input:focus { border-color: var(--green-dim); box-shadow: 0 0 0 3px var(--green-glow); }
         .form-group select option { background: var(--surface); }
 
-        .mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
-        .mode-toggle button { padding: 9px; background: transparent; border: none; color: var(--text2); font-family: var(--mono); font-size: 0.78rem; cursor: pointer; transition: background .2s, color .2s; }
+        .mode-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+        .mode-toggle button { padding: 9px; background: transparent; border: none; color: var(--text2); font-family: var(--mono); font-size: 0.78rem; cursor: pointer; }
         .mode-toggle button.active-auto   { background: var(--green-glow); color: var(--green); }
         .mode-toggle button.active-manual { background: rgba(240,165,0,.1); color: var(--amber); }
 
@@ -176,62 +226,112 @@
 
         .actuators { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .act-btn {
-            padding: 12px 10px;
-            background: var(--surface2); border: 1px solid var(--border2);
-            border-radius: var(--radius); color: var(--text2);
-            font-family: var(--sans); font-size: 0.8rem; font-weight: 500;
-            cursor: pointer; transition: all .2s;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 12px 10px; background: var(--surface2); border: 1px solid var(--border2);
+            border-radius: var(--radius); color: var(--text2); font-family: var(--sans); font-size: 0.8rem; font-weight: 500;
+            cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px;
         }
         .act-btn:hover { border-color: var(--border); color: var(--text); }
-        .act-btn.active { background: rgba(240,165,0,.1); border-color: rgba(240,165,0,.4); color: var(--amber); box-shadow: 0 0 12px rgba(240,165,0,.1); }
-        /* Botó de bomba en espera (desactivat durant el pols) */
-        .act-btn.pulsing {
-            background: rgba(61,220,132,0.07); border-color: var(--green-dim);
-            color: var(--green); opacity: 0.6; cursor: not-allowed;
-        }
+        .act-btn.active { background: rgba(240,165,0,.1); border-color: rgba(240,165,0,.4); color: var(--amber); }
+        .act-btn.pulsing { background: rgba(61,220,132,0.07); border-color: var(--green-dim); color: var(--green); opacity: 0.6; cursor: not-allowed; }
 
         .warning-note { font-size: 0.72rem; font-family: var(--mono); color: var(--amber); background: rgba(240,165,0,.07); border: 1px solid rgba(240,165,0,.2); border-radius: var(--radius); padding: 8px 10px; margin-bottom: 12px; }
-        .btn-save { width: 100%; padding: 11px; background: var(--green-glow); border: 1px solid var(--green-dim); border-radius: var(--radius); color: var(--green); font-family: var(--sans); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background .2s; margin-top: 8px; }
+        .btn-save { width: 100%; padding: 11px; background: var(--green-glow); border: 1px solid var(--green-dim); border-radius: var(--radius); color: var(--green); font-family: var(--sans); font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-top: 8px; }
         .btn-save:hover { background: rgba(61,220,132,.2); }
 
         .hidden { display: none !important; }
         .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
+        /* --- CHARTS --- */
         .charts-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
         .charts-panel-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-        .charts-panel-header h3 { font-size: 0.85rem; font-weight: 600; }
-        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0; }
-        @media (max-width: 620px) {
-            .chart-cell { border-right: none !important; }
-            .chart-cell:nth-child(3) { border-bottom: 1px solid var(--border) !important; }
-            .chart-wrap { height: 180px; }
-        }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
         .chart-cell { padding: 18px 20px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
         .chart-cell:nth-child(2n)  { border-right: none; }
         .chart-cell:nth-child(3), .chart-cell:nth-child(4) { border-bottom: none; }
-        .chart-title { font-size: 0.7rem; font-family: var(--mono); color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .chart-title { font-size: 0.7rem; font-family: var(--mono); color: var(--text2); text-transform: uppercase; margin-bottom: 12px; }
         .chart-wrap { position: relative; height: 160px; }
 
+        /* --- LOGS --- */
         .logs-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-top: 14px; }
-        .logs-header { padding: 14px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-        .btn-clear-logs { padding: 5px 12px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text3); font-family: var(--mono); font-size: 0.72rem; cursor: pointer; transition: color .2s, border-color .2s; }
-        .btn-clear-logs:hover { color: var(--text2); border-color: var(--border); }
-        #logs-container { max-height: 280px; overflow-y: auto; padding: 6px 0; font-family: var(--mono); font-size: 0.78rem; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
-        #logs-container::-webkit-scrollbar { width: 4px; }
-        #logs-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
-        .log-row { display: flex; align-items: baseline; gap: 12px; padding: 6px 22px; border-bottom: 1px solid var(--border); transition: background .15s; animation: log-in .25s ease; }
-        .log-row:last-child { border-bottom: none; }
+        .logs-header { padding: 14px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .btn-clear-logs { padding: 5px 12px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text3); font-size: 0.72rem; cursor: pointer; }
+        #logs-container { max-height: 280px; overflow-y: auto; padding: 6px 0; font-family: var(--mono); font-size: 0.78rem; }
+        .log-row { display: flex; gap: 12px; padding: 6px 22px; border-bottom: 1px solid var(--border); }
         .log-row:hover { background: var(--surface2); }
-        @keyframes log-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-        .log-ts { flex-shrink: 0; color: var(--text3); font-size: 0.72rem; white-space: nowrap; }
-        .log-msg { color: var(--text2); line-height: 1.4; }
-        .log-msg.warn  { color: #e0a050; }
+        .log-ts { color: var(--text3); font-size: 0.72rem; white-space: nowrap; }
+        .log-msg { color: var(--text2); }
+        .log-msg.warn { color: #e0a050; }
         .log-msg.error { color: var(--red); }
-        .log-empty { padding: 24px 22px; color: var(--text3); font-family: var(--mono); font-size: 0.78rem; text-align: center; }
-        .log-badge { flex-shrink: 0; font-size: 0.62rem; font-family: var(--mono); font-weight: 500; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; align-self: center; }
+        .log-badge { font-size: 0.62rem; padding: 2px 6px; border-radius: 4px; }
         .log-badge-web { background: rgba(77,168,218,0.12); border: 1px solid rgba(77,168,218,0.3); color: #4da8da; }
         .log-badge-esp { background: rgba(61,220,132,0.08); border: 1px solid rgba(61,220,132,0.2); color: var(--green); }
+        .log-empty { padding: 24px; text-align: center; color: var(--text3); }
+
+        /* --- MODAL AFEGIR HIVERNACLE --- */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity .2s; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; width: calc(100% - 32px); max-width: 400px; transform: translateY(20px); transition: transform .2s; }
+        .modal-overlay.active .modal-box { transform: translateY(0); }
+        .modal-box h3 { margin-bottom: 16px; font-weight: 600; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+        .btn-cancel { flex: 1; padding: 11px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); cursor: pointer; }
+        .btn-confirm { flex: 1; padding: 11px; background: var(--green); color: #061008; border: none; border-radius: var(--radius); font-weight: 600; cursor: pointer; }
+
+        /* ==========================================================
+           RESPONSIVE MEDIA QUERIES
+           ========================================================== */
+
+        /* Tablets and small desktops */
+        @media (max-width: 1100px) { 
+            .bottom-grid { grid-template-columns: 1fr; } 
+        }
+
+        @media (max-width: 900px) { 
+            .sensors-grid { grid-template-columns: repeat(2, 1fr); } 
+        }
+
+        /* Mobile Phones */
+        @media (max-width: 768px) {
+            .topbar { padding: 0 16px; }
+            .mobile-menu-btn { display: block; }
+            .main { padding: 16px; }
+            
+            /* Sidebar becomes an off-canvas drawer */
+            .sidebar {
+                position: fixed; top: 0; left: -280px; width: 260px; height: 100vh;
+                transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: none;
+            }
+            .sidebar.open { left: 0; box-shadow: 4px 0 24px rgba(0,0,0,0.5); }
+            
+            /* Background overlay when sidebar is open */
+            .sidebar-overlay {
+                display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+                z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(2px);
+            }
+            .sidebar-overlay.active { opacity: 1; pointer-events: auto; }
+
+            /* Fix chart borders on mobile (all become full width) */
+            .chart-cell { border-right: none; border-bottom: 1px solid var(--border); }
+            .chart-cell:last-child { border-bottom: none; }
+            
+            .log-row { flex-direction: column; gap: 4px; padding: 10px 16px; }
+            .log-badge { align-self: flex-start; }
+        }
+
+        /* Very Small Mobile Phones */
+        @media (max-width: 480px) {
+            .sensors-grid { grid-template-columns: 1fr; }
+            .topbar-left { gap: 10px; }
+            .topbar-brand span { display: none; } /* Hide 'Hivernacle' text, keep icon */
+            .version { display: none; }
+            .status-pill { padding: 4px 8px; font-size: 0.65rem; }
+            .user-chip { display: none; } /* Hide username to save space */
+            
+            .settings-grid { grid-template-columns: 1fr; } /* Stack min/max temps */
+            .time-row { grid-template-columns: 1fr; } /* Stack time inputs */
+            .actuators { grid-template-columns: 1fr; } /* Stack manual buttons */
+            .panel-header h3 { font-size: 0.8rem; }
+        }
     </style>
 </head>
 <body>
@@ -244,211 +344,407 @@
             <p>Sistema de control autònom</p>
         </div>
         <div class="login-box">
+            <h2 id="auth-title">Iniciar Sessió</h2>
             <div class="field">
-                <label>ID Dispositiu</label>
-                <input type="text" id="dev-id" placeholder="ex: GH_POL" autocomplete="off">
+                <label>Nom d'Usuari</label>
+                <input type="text" id="auth-user" placeholder="ex: joan123" autocomplete="off">
             </div>
             <div class="field">
                 <label>Contrasenya</label>
-                <input type="password" id="dev-pass" placeholder="••••••••">
+                <input type="password" id="auth-pass" placeholder="••••••••">
             </div>
-            <button class="btn-primary" onclick="ferLogin()">Accedir</button>
-            <div id="login-error">Credencials incorrectes</div>
+            <button class="btn-primary" id="btn-auth" onclick="realitzarAuth()">Accedir</button>
+            <button class="btn-text" id="btn-toggle-auth" onclick="alternarModeAuth()">No tens compte? Registra't</button>
+            
+            <div id="auth-feedback"></div>
         </div>
     </div>
 </div>
 
 <div id="dashboard">
-    <header class="topbar">
-        <div class="topbar-left">
-            <div class="topbar-brand">🌱 <span>Hivernacle</span> IoT</div>
-            <span class="version">v0.1.9</span>
-            <div id="conn-status" class="status-pill offline">
-                <span class="status-dot"></span>
-                <span id="conn-text">Comprovant...</span>
-            </div>
-        </div>
-        <div class="topbar-right">
-            <span class="user-chip" id="user-name">—</span>
-            <button class="btn-logout" onclick="logout()">Sortir</button>
-        </div>
-    </header>
-
-    <main class="main">
-        <div class="sensors-grid">
-            <div class="sensor-card">
-                <div class="sensor-icon">🌡</div>
-                <div class="sensor-label">Temperatura</div>
-                <div class="sensor-value"><span id="val-temp">--</span><span class="sensor-unit">°C</span></div>
-            </div>
-            <div class="sensor-card" data-accent="blue">
-                <div class="sensor-icon">💧</div>
-                <div class="sensor-label">Humitat Aire</div>
-                <div class="sensor-value"><span id="val-hum">--</span><span class="sensor-unit">%</span></div>
-            </div>
-            <div class="sensor-card" data-accent="amber">
-                <div class="sensor-icon">🪱</div>
-                <div class="sensor-label">Humitat Sòl</div>
-                <div class="sensor-value"><span id="val-soil">--</span><span class="sensor-unit">%</span></div>
-            </div>
-            <div class="sensor-card" data-accent="red">
-                <div class="sensor-icon">☀️</div>
-                <div class="sensor-label">Llum</div>
-                <div class="sensor-value"><span id="val-light">--</span><span class="sensor-unit">lx</span></div>
-            </div>
-        </div>
-
-        <div class="bottom-grid">
-            <div class="panel">
-                <div class="panel-header">
-                    <span class="ph-icon">⚙️</span>
-                    <h3>Configuració del Cultiu</h3>
+    <div class="dashboard-layout">
+        
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <aside class="sidebar">
+            <div class="sidebar-header">Els meus Hivernacles</div>
+            <div class="hivernacles-list" id="hivernacles-list">
                 </div>
-                <div class="panel-body">
-                    <div class="form-group">
-                        <label>Biblioteca de Plantes</label>
-                        <select id="plant-selector" onchange="carregarPlantaPredefinida()">
-                            <option value="Personalitzat">— Personalitzat / Manual —</option>
-                        </select>
+            <button class="btn-secondary" onclick="obrirModalAfegir()">+ Afegir Hivernacle</button>
+        </aside>
+
+        <div class="dashboard-main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+                    <div class="topbar-brand">🌱 <span>Hivernacle</span> IoT</div>
+                    <span class="version">v0.1.11</span>
+                    <div id="conn-status" class="status-pill offline">
+                        <span class="status-dot"></span>
+                        <span id="conn-text">Desconnectat</span>
                     </div>
-                    <div class="form-group">
-                        <label>Mode de Control</label>
-                        <div class="mode-toggle">
-                            <button id="btn-mode-auto"   onclick="setMode('AUTO')"   class="active-auto">⚡ Automàtic</button>
-                            <button id="btn-mode-manual" onclick="setMode('MANUAL')">🎛 Manual</button>
+                </div>
+                <div class="topbar-right">
+                    <span class="user-chip" id="user-name-display">—</span>
+                    <button class="btn-logout" onclick="logout()">Sortir</button>
+                </div>
+            </header>
+
+            <main class="main">
+                <div id="empty-state">
+                    <h2>Cap hivernacle seleccionat</h2>
+                    <p>Selecciona un hivernacle del menú lateral o afegeix-ne un de nou per començar a monitoritzar.</p>
+                </div>
+
+                <div id="main-content" class="hidden">
+                    <div class="sensors-grid">
+                        <div class="sensor-card">
+                            <div class="sensor-icon">🌡</div>
+                            <div class="sensor-label">Temperatura</div>
+                            <div class="sensor-value"><span id="val-temp">--</span><span class="sensor-unit">°C</span></div>
+                        </div>
+                        <div class="sensor-card" data-accent="blue">
+                            <div class="sensor-icon">💧</div>
+                            <div class="sensor-label">Humitat Aire</div>
+                            <div class="sensor-value"><span id="val-hum">--</span><span class="sensor-unit">%</span></div>
+                        </div>
+                        <div class="sensor-card" data-accent="amber">
+                            <div class="sensor-icon">🪱</div>
+                            <div class="sensor-label">Humitat Sòl</div>
+                            <div class="sensor-value"><span id="val-soil">--</span><span class="sensor-unit">%</span></div>
+                        </div>
+                        <div class="sensor-card" data-accent="red">
+                            <div class="sensor-icon">☀️</div>
+                            <div class="sensor-label">Llum</div>
+                            <div class="sensor-value"><span id="val-light">--</span><span class="sensor-unit">lx</span></div>
                         </div>
                     </div>
-                    <div id="auto-settings">
-                        <div class="settings-grid">
-                            <div class="form-group" style="margin:0">
-                                <label>Temp. Mín (°C)</label>
-                                <input type="number" id="set-tmin">
+
+                    <div class="bottom-grid">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <span class="ph-icon">⚙️</span>
+                                <h3>Configuració del Cultiu</h3>
                             </div>
-                            <div class="form-group" style="margin:0">
-                                <label>Temp. Màx (°C)</label>
-                                <input type="number" id="set-tmax">
+                            <div class="panel-body">
+                                <div class="form-group">
+                                    <label>Biblioteca de Plantes</label>
+                                    <select id="plant-selector" onchange="carregarPlantaPredefinida()">
+                                        <option value="Personalitzat">— Personalitzat / Manual —</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Mode de Control</label>
+                                    <div class="mode-toggle">
+                                        <button id="btn-mode-auto"   onclick="setMode('AUTO')"   class="active-auto">⚡ Automàtic</button>
+                                        <button id="btn-mode-manual" onclick="setMode('MANUAL')">🎛 Manual</button>
+                                    </div>
+                                </div>
+                                <div id="auto-settings">
+                                    <div class="settings-grid">
+                                        <div class="form-group" style="margin:0">
+                                            <label>Temp. Mín (°C)</label>
+                                            <input type="number" id="set-tmin">
+                                        </div>
+                                        <div class="form-group" style="margin:0">
+                                            <label>Temp. Màx (°C)</label>
+                                            <input type="number" id="set-tmax">
+                                        </div>
+                                        <div class="form-group" style="margin:0; margin-top:10px; grid-column:1/-1">
+                                            <label>Humitat Sòl Mín (%)</label>
+                                            <input type="number" id="set-soil">
+                                        </div>
+                                        <div class="form-group" style="margin:0; margin-top:10px; grid-column:1/-1">
+                                            <label>Llum — Hora d'Encesa / Apagada</label>
+                                            <div class="time-row">
+                                                <input type="time" id="set-lon">
+                                                <input type="time" id="set-loff">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="manual-controls" class="hidden">
+                                    <div class="warning-note">⚠ En mode manual l'hivernacle no es regula sol.</div>
+                                    <div class="actuators">
+                                        <button id="btn-fan"    class="act-btn" onclick="toggleManual('fan')">💨 Ventilador</button>
+                                        <button id="btn-pump"   class="act-btn" onclick="toggleManual('pump')">💧 Bomba</button>
+                                        <button id="btn-light"  class="act-btn" onclick="toggleManual('light')">💡 Llums</button>
+                                        <button id="btn-heater" class="act-btn" onclick="toggleManual('heater')">🔥 Calefacció</button>
+                                    </div>
+                                </div>
+                                <div class="divider"></div>
+                                <button class="btn-save" onclick="guardarCanvis()">Guardar configuració →</button>
                             </div>
-                            <div class="form-group" style="margin:0; margin-top:10px; grid-column:1/-1">
-                                <label>Humitat Sòl Mín (%)</label>
-                                <input type="number" id="set-soil">
+                        </div>
+
+                        <div class="charts-panel">
+                            <div class="charts-panel-header">
+                                <span>📈</span>
+                                <h3>Històric — Últimes lectures</h3>
                             </div>
-                            <div class="form-group" style="margin:0; margin-top:10px; grid-column:1/-1">
-                                <label>Llum — Hora d'Encesa / Apagada</label>
-                                <div class="time-row">
-                                    <input type="time" id="set-lon">
-                                    <input type="time" id="set-loff">
+                            <div class="charts-grid">
+                                <div class="chart-cell">
+                                    <div class="chart-title">Temperatura · °C</div>
+                                    <div class="chart-wrap"><canvas id="chartTemp"></canvas></div>
+                                </div>
+                                <div class="chart-cell">
+                                    <div class="chart-title">Humitat Aire · %</div>
+                                    <div class="chart-wrap"><canvas id="chartHum"></canvas></div>
+                                </div>
+                                <div class="chart-cell">
+                                    <div class="chart-title">Humitat Sòl · %</div>
+                                    <div class="chart-wrap"><canvas id="chartSoil"></canvas></div>
+                                </div>
+                                <div class="chart-cell">
+                                    <div class="chart-title">Nivell de Llum · lx</div>
+                                    <div class="chart-wrap"><canvas id="chartLight"></canvas></div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div id="manual-controls" class="hidden">
-                        <div class="warning-note">⚠ En mode manual l'hivernacle no es regula sol.</div>
-                        <div class="actuators">
-                            <button id="btn-fan"    class="act-btn" onclick="toggleManual('fan')">💨 Ventilador</button>
-                            <button id="btn-pump"   class="act-btn" onclick="toggleManual('pump')">💧 Bomba</button>
-                            <button id="btn-light"  class="act-btn" onclick="toggleManual('light')">💡 Llums</button>
-                            <button id="btn-heater" class="act-btn" onclick="toggleManual('heater')">🔥 Calefacció</button>
+
+                    <div class="logs-panel">
+                        <div class="logs-header">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span>📋</span>
+                                <h3 style="font-size:0.85rem; font-weight:600;">Registre d'activitat</h3>
+                            </div>
+                            <button class="btn-clear-logs" onclick="netejarLogsVisuals()">Netejar vista</button>
+                        </div>
+                        <div id="logs-container">
+                            <div class="log-empty">Cap registre disponible</div>
                         </div>
                     </div>
-                    <div class="divider"></div>
-                    <button class="btn-save" onclick="guardarCanvis()">Guardar configuració →</button>
-                </div>
-            </div>
-
-            <div class="charts-panel">
-                <div class="charts-panel-header">
-                    <span>📈</span>
-                    <h3>Històric — Últimes lectures</h3>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-cell">
-                        <div class="chart-title">Temperatura · °C</div>
-                        <div class="chart-wrap"><canvas id="chartTemp"></canvas></div>
-                    </div>
-                    <div class="chart-cell">
-                        <div class="chart-title">Humitat Aire · %</div>
-                        <div class="chart-wrap"><canvas id="chartHum"></canvas></div>
-                    </div>
-                    <div class="chart-cell">
-                        <div class="chart-title">Humitat Sòl · %</div>
-                        <div class="chart-wrap"><canvas id="chartSoil"></canvas></div>
-                    </div>
-                    <div class="chart-cell">
-                        <div class="chart-title">Nivell de Llum · lx</div>
-                        <div class="chart-wrap"><canvas id="chartLight"></canvas></div>
-                    </div>
-                </div>
-            </div>
+                </div> </main>
         </div>
+    </div>
+</div>
 
-        <div class="logs-panel">
-            <div class="logs-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span>📋</span>
-                    <h3 style="font-size:0.85rem; font-weight:600;">Registre d'activitat</h3>
-                </div>
-                <button class="btn-clear-logs" onclick="netejarLogsVisuals()">Netejar vista</button>
-            </div>
-            <div id="logs-container">
-                <div class="log-empty">Cap registre disponible</div>
-            </div>
+<div id="modal-afegir" class="modal-overlay">
+    <div class="modal-box">
+        <h3>Vincular Nou Hivernacle</h3>
+        <p style="font-size: 0.8rem; color: var(--text2); margin-bottom: 16px;">Introdueix l'identificador únic del teu dispositiu per afegir-lo al teu compte.</p>
+        <div class="field">
+            <label>Codi del Dispositiu</label>
+            <input type="text" id="claim-id" placeholder="ex: GH-A8F2-99XZ">
         </div>
-    </main>
+        <div id="claim-feedback" style="font-size: 0.8rem; font-family: var(--mono); text-align: center; display: none;"></div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="tancarModalAfegir()">Cancel·lar</button>
+            <button class="btn-confirm" onclick="vincularHivernacle()">Vincular</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    let CREDENTIALS = { id: '', pass: '' };
+    // --- ESTAT GLOBAL ---
+    let USER = { id: null, name: '' };
+    let HIVERNACLES = [];
+    let CURRENT_DEVICE = null;
+    let IS_REGISTER_MODE = false;
+    
     let ALL_PLANTS = [];
     let MANUAL_STATE = { fan: false, pump: false, light: false, heater: false };
     let currentMode = 'AUTO';
     let charts = { temp: null, hum: null, soil: null, light: null };
+    let refreshDataInterval, refreshLogsInterval;
 
     Chart.defaults.color = '#6b8f78';
     Chart.defaults.borderColor = '#1f2e26';
     Chart.defaults.font.family = "'DM Mono', monospace";
     Chart.defaults.font.size = 11;
 
+    // --- INIT ---
     window.onload = async () => {
-        const storedId   = localStorage.getItem('gh_id');
-        const storedPass = localStorage.getItem('gh_pass');
-        if (storedId && storedPass) {
-            CREDENTIALS = { id: storedId, pass: storedPass };
+        const storedUserId = localStorage.getItem('user_id');
+        const storedUserName = localStorage.getItem('user_name');
+        if (storedUserId) {
+            USER.id = storedUserId;
+            USER.name = storedUserName;
+            HIVERNACLES = JSON.parse(localStorage.getItem('hivernacles') || '[]');
             await iniciarDashboard();
         }
     };
 
-    async function ferLogin() {
-        const id   = document.getElementById('dev-id').value;
-        const pass = document.getElementById('dev-pass').value;
-        try {
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: id, password: pass })
-            });
-            if (res.ok) {
-                localStorage.setItem('gh_id', id);
-                localStorage.setItem('gh_pass', pass);
-                CREDENTIALS = { id, pass };
-                await iniciarDashboard();
-            } else {
-                document.getElementById('login-error').style.display = 'block';
-            }
-        } catch (e) { alert("Error de connexió"); }
+    // --- SIDEBAR TOGGLE ---
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('open');
+        document.getElementById('sidebar-overlay').classList.toggle('active');
+    }
+
+    // --- AUTHENTICATION ---
+    function alternarModeAuth() {
+        IS_REGISTER_MODE = !IS_REGISTER_MODE;
+        document.getElementById('auth-title').innerText = IS_REGISTER_MODE ? 'Crea un Compte' : 'Iniciar Sessió';
+        document.getElementById('btn-auth').innerText = IS_REGISTER_MODE ? 'Registrar-se' : 'Accedir';
+        document.getElementById('btn-toggle-auth').innerText = IS_REGISTER_MODE ? 'Ja tens compte? Inicia sessió' : "No tens compte? Registra't";
+        document.getElementById('auth-feedback').style.display = 'none';
+    }
+
+    function mostrarErrorAuth(msg, color = 'var(--red)') {
+        const div = document.getElementById('auth-feedback');
+        div.style.color = color;
+        div.innerText = msg;
+        div.style.display = 'block';
+    }
+
+    async function realitzarAuth() {
+        const user = document.getElementById('auth-user').value;
+        const pass = document.getElementById('auth-pass').value;
+        
+        if (!user || !pass) return mostrarErrorAuth('Omple tots els camps');
+
+        if (IS_REGISTER_MODE) {
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_name: user, password: pass })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alternarModeAuth(); // Tornem al login automàticament
+                    mostrarErrorAuth('Compte creat! Ara inicia sessió.', 'var(--green)');
+                } else {
+                    mostrarErrorAuth(data.error || 'Error al registrar');
+                }
+            } catch (e) { mostrarErrorAuth("Error de connexió"); }
+        } else {
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_name: user, password: pass })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    USER.id = data.user_id;
+                    USER.name = data.user_name;
+                    HIVERNACLES = data.hivernacles || [];
+                    
+                    localStorage.setItem('user_id', USER.id);
+                    localStorage.setItem('user_name', USER.name);
+                    localStorage.setItem('hivernacles', JSON.stringify(HIVERNACLES));
+                    
+                    await iniciarDashboard();
+                } else {
+                    mostrarErrorAuth(data.error || 'Credencials incorrectes');
+                }
+            } catch (e) { mostrarErrorAuth("Error de connexió"); }
+        }
     }
 
     function logout() { localStorage.clear(); location.reload(); }
 
+    // --- DASHBOARD INIT & SIDEBAR ---
     async function iniciarDashboard() {
         document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('dashboard').style.display    = 'block';
+        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('user-name-display').innerText = USER.name;
+
+        renderitzarSidebar();
         await carregarLlistaPlantes();
-        refreshData();
-        refreshLogs();
-        setInterval(refreshData, 60000);
-        setInterval(refreshLogs, 30000);
+
+        if (HIVERNACLES.length > 0) {
+            // Seleccionem el primer per defecte
+            seleccionarHivernacle(HIVERNACLES[0]);
+        } else {
+            // Si no en té cap, mostrem l'empty state
+            document.getElementById('empty-state').style.display = 'block';
+            document.getElementById('main-content').classList.add('hidden');
+        }
     }
 
+    function renderitzarSidebar() {
+        const listDiv = document.getElementById('hivernacles-list');
+        listDiv.innerHTML = HIVERNACLES.map(id => `
+            <button class="hiv-item ${id === CURRENT_DEVICE ? 'active' : ''}" onclick="seleccionarHivernacle('${id}')">
+                ${id}
+            </button>
+        `).join('');
+    }
+
+    function seleccionarHivernacle(device_id) {
+        CURRENT_DEVICE = device_id;
+        renderitzarSidebar(); // Actualitza estils visual de seleccionat
+
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('main-content').classList.remove('hidden');
+        
+        // Tancar la barra lateral si estem en mòbil
+        if (window.innerWidth <= 768) {
+            document.querySelector('.sidebar').classList.remove('open');
+            document.getElementById('sidebar-overlay').classList.remove('active');
+        }
+
+        // Netegem intervals antics si estem canviant de dispositiu
+        if (refreshDataInterval) clearInterval(refreshDataInterval);
+        if (refreshLogsInterval) clearInterval(refreshLogsInterval);
+
+        // Resetejar UI per defecte abans del primer fetch
+        document.getElementById('conn-status').className = 'status-pill offline';
+        document.getElementById('conn-text').innerText = 'Comprovant...';
+
+        refreshData();
+        refreshLogs();
+        refreshDataInterval = setInterval(refreshData, 60000);
+        refreshLogsInterval = setInterval(refreshLogs, 30000);
+    }
+
+    // --- MODAL AFEGIR HIVERNACLE ---
+    function obrirModalAfegir() {
+        document.getElementById('claim-id').value = '';
+        document.getElementById('claim-feedback').style.display = 'none';
+        document.getElementById('modal-afegir').classList.add('active');
+        
+        if (window.innerWidth <= 768) {
+            document.querySelector('.sidebar').classList.remove('open');
+            document.getElementById('sidebar-overlay').classList.remove('active');
+        }
+    }
+
+    function tancarModalAfegir() {
+        document.getElementById('modal-afegir').classList.remove('active');
+    }
+
+    async function vincularHivernacle() {
+        const dev_id = document.getElementById('claim-id').value.trim();
+        const feedback = document.getElementById('claim-feedback');
+        
+        if (!dev_id) {
+            feedback.style.color = 'var(--red)';
+            feedback.innerText = "Si us plau, introdueix l'ID del dispositiu";
+            feedback.style.display = 'block';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/claim-hivernacle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: USER.id, device_id: dev_id }) 
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                if (!HIVERNACLES.includes(dev_id)) {
+                    HIVERNACLES.push(dev_id);
+                    localStorage.setItem('hivernacles', JSON.stringify(HIVERNACLES));
+                }
+                tancarModalAfegir();
+                seleccionarHivernacle(dev_id);
+            } else {
+                feedback.style.color = 'var(--red)';
+                feedback.innerText = data.error || 'Error al vincular';
+                feedback.style.display = 'block';
+            }
+        } catch (e) {
+            feedback.style.color = 'var(--red)';
+            feedback.innerText = "Error de connexió";
+            feedback.style.display = 'block';
+        }
+    }
+
+    // --- OBTENCIÓ DE DADES ---
     async function carregarLlistaPlantes() {
         const res = await fetch('/api/plants');
         ALL_PLANTS = await res.json();
@@ -461,11 +757,12 @@
     }
 
     async function refreshData() {
+        if (!CURRENT_DEVICE) return;
         try {
             const res = await fetch('/api/status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass })
+                body: JSON.stringify({ device_id: CURRENT_DEVICE, user_id: USER.id })
             });
             if (!res.ok) return;
             const data = await res.json();
@@ -477,8 +774,6 @@
     function actualitzarUI(data) {
         const lect = data.lectura || {};
         const conf = data.estat   || {};
-
-        document.getElementById('user-name').innerText = conf.propietari || '—';
 
         const lastSeen = new Date((conf.ultima_connexio || '').replace(' ', 'T') + 'Z');
         const diffSec  = Math.floor((Date.now() - lastSeen) / 1000);
@@ -501,7 +796,6 @@
             setMode(conf.mode_operacio || 'AUTO', true);
         }
 
-        // No sobreescrivim l'estat de la bomba si hi ha un pols en curs
         const pumpBtn = document.getElementById('btn-pump');
         const pumpPulsing = pumpBtn && pumpBtn.classList.contains('pulsing');
         MANUAL_STATE = {
@@ -554,22 +848,16 @@
     }
 
     function toggleManual(device) {
-        // ── Bomba: pols únic de 5 s, botó bloquejat durant el pols ──────────
         if (device === 'pump') {
             const btn = document.getElementById('btn-pump');
-
-            // Si el botó està bloquejat (pols en curs), ignorem el clic
             if (btn.classList.contains('pulsing')) return;
 
-            // Activem la bomba, guardem i bloquejem el botó
             MANUAL_STATE.pump = true;
-            guardarCanvis();  // envia manual_pump=true al Worker → ESP32 rega 5 s
+            guardarCanvis(); 
 
             btn.className = 'act-btn pulsing';
             btn.textContent = '💧 Regant...';
 
-            // Als 7 s l'ESP32 ja ha acabat i ha cridat resetPumpCloud()
-            // Refresquem per reflectir l'estat real de la DB
             setTimeout(async () => {
                 MANUAL_STATE.pump = false;
                 btn.className  = 'act-btn';
@@ -577,11 +865,9 @@
                 await refreshData();
                 await refreshLogs();
             }, 7000);
-
             return;
         }
 
-        // ── Resta d'actuadors: toggle normal ─────────────────────────────────
         MANUAL_STATE[device] = !MANUAL_STATE[device];
         updateManualButtonsVisuals();
     }
@@ -591,8 +877,6 @@
             const btn = document.getElementById('btn-' + d);
             if (btn) btn.className = 'act-btn' + (MANUAL_STATE[d] ? ' active' : '');
         });
-        // La bomba la gestiona toggleManual directament, no la toquem aquí
-        // llevat que no estigui en mode pulsing
         const pumpBtn = document.getElementById('btn-pump');
         if (pumpBtn && !pumpBtn.classList.contains('pulsing')) {
             pumpBtn.className = 'act-btn' + (MANUAL_STATE.pump ? ' active' : '');
@@ -601,6 +885,7 @@
     }
 
     async function guardarCanvis() {
+        if (!CURRENT_DEVICE) return;
         const settings = {
             mode:          currentMode,
             planta_activa: document.getElementById('plant-selector').value,
@@ -617,10 +902,9 @@
         const res = await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass, settings })
+            body: JSON.stringify({ device_id: CURRENT_DEVICE, user_id: USER.id, settings })
         });
         if (res.ok) {
-            // Només mostrem feedback si és una acció manual de l'usuari (no el pols automàtic)
             const btn = document.querySelector('.btn-save');
             if (btn && document.activeElement === btn) {
                 btn.innerText = '✓ Guardat!';
@@ -629,7 +913,7 @@
         } else { alert('Error guardant la configuració'); }
     }
 
-    // ── CHARTS ────────────────────────────────────────────────────────────────
+    // --- CHARTS ---
     const CHART_COLORS = { temp: '#e05252', hum: '#4da8da', soil: '#3ddc84', light: '#f0a500' };
 
     function crearGrafica(canvasId, colorKey) {
@@ -667,16 +951,16 @@
         update(charts.light, rev.map(h => h.llum || 0));
     }
 
-    // ── LOGS ──────────────────────────────────────────────────────────────────
+    // --- LOGS ---
     let logsHidden = false;
 
     async function refreshLogs() {
-        if (logsHidden) return;
+        if (logsHidden || !CURRENT_DEVICE) return;
         try {
             const res = await fetch('/api/logs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: CREDENTIALS.id, password: CREDENTIALS.pass })
+                body: JSON.stringify({ device_id: CURRENT_DEVICE, user_id: USER.id })
             });
             if (!res.ok) return;
             renderLogs(await res.json());
@@ -686,7 +970,7 @@
     function renderLogs(logs) {
         const container = document.getElementById('logs-container');
         if (!logs || logs.length === 0) {
-            container.innerHTML = '<div class="log-empty">Cap registre disponible</div>';
+            container.innerHTML = '<div class="log-empty">Cap registre disponible per aquest hivernacle.</div>';
             return;
         }
         container.innerHTML = logs.map(log => {
