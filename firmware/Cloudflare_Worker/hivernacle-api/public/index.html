@@ -377,7 +377,7 @@
                 <div class="topbar-left">
                     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
                     <div class="topbar-brand">🌱 <span>Hivernacle</span> IoT</div>
-                    <span class="version">v0.1.11</span>
+                    <span class="version">v0.2.0</span>
                     <div id="conn-status" class="status-pill offline">
                         <span class="status-dot"></span>
                         <span id="conn-text">Desconnectat</span>
@@ -401,6 +401,11 @@
                             <div class="sensor-icon">🌡</div>
                             <div class="sensor-label">Temperatura</div>
                             <div class="sensor-value"><span id="val-temp">--</span><span class="sensor-unit">°C</span></div>
+
+                            <div style="font-size: 0.7rem; font-family: var(--mono); color: var(--text2); margin-top: 10px; display: flex; justify-content: space-between; border-top: 1px dashed var(--border2); padding-top: 8px;">
+                                <span>💨 Fan: <span id="val-pid-fan">0</span>%</span>
+                                <span style="color: var(--amber);">🔥 Heat: <span id="val-pid-heater">0</span>%</span>
+                            </div>
                         </div>
                         <div class="sensor-card" data-accent="blue">
                             <div class="sensor-icon">💧</div>
@@ -775,6 +780,7 @@
         const lect = data.lectura || {};
         const conf = data.estat   || {};
 
+        // 1. Actualitzar estat de connexió
         const lastSeen = new Date((conf.ultima_connexio || '').replace(' ', 'T') + 'Z');
         const diffSec  = Math.floor((Date.now() - lastSeen) / 1000);
         const badge    = document.getElementById('conn-status');
@@ -787,15 +793,36 @@
             textSpan.innerText = `Offline · ${Math.floor(diffSec/60)}m`;
         }
 
+        // 2. Actualitzar valors dels sensors
         animVal('val-temp',  lect.temp?.toFixed(1)  || '--');
         animVal('val-hum',   lect.hum?.toFixed(1)   || '--');
         animVal('val-soil',  lect.hum_sol            || '--');
         animVal('val-light', lect.llum?.toFixed(0)  || '--');
 
+        animVal('val-pid-fan', lect.pid_fan || '0');
+        animVal('val-pid-heater', lect.pid_heater || '0');
+
+        // 3. Actualitzar configuració (Només si l'usuari no està escrivint o modificant el select)
         if (document.activeElement.tagName !== 'SELECT' && document.activeElement.tagName !== 'INPUT') {
+            
+            // Assignar mode (Automàtic o Manual)
             setMode(conf.mode_operacio || 'AUTO', true);
+            
+            // Assignar la planta seleccionada (si n'hi ha una guardada)
+            const plantSelector = document.getElementById('plant-selector');
+            if (conf.planta_activa && plantSelector) {
+                plantSelector.value = conf.planta_activa;
+            }
+
+            // Assignar els valors límit guardats a la BBDD
+            document.getElementById('set-tmin').value = conf.target_temp_min ?? '';
+            document.getElementById('set-tmax').value = conf.target_temp_max ?? '';
+            document.getElementById('set-soil').value = conf.target_hum_sol_min ?? '';
+            document.getElementById('set-lon').value  = conf.target_llum_on ?? '';
+            document.getElementById('set-loff').value = conf.target_llum_off ?? '';
         }
 
+        // 4. Actualitzar estat dels botons manuals
         const pumpBtn = document.getElementById('btn-pump');
         const pumpPulsing = pumpBtn && pumpBtn.classList.contains('pulsing');
         MANUAL_STATE = {
