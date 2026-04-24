@@ -338,8 +338,8 @@ export default {
         if (url.pathname === '/api/check-update') {
             const reqData = await request.json();
             const clientVersion = reqData.current_version;
-            const LATEST_VERSION = "0.2.0";
-            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.2.0/firmware.bin";
+            const LATEST_VERSION = "0.2.1";
+            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.2.1/firmware.bin";
 
             if (clientVersion !== LATEST_VERSION) {
                 return new Response(
@@ -442,7 +442,7 @@ export default {
 
 async function netejarRegistresAntics(env: Env) {
     const lecturesResult = await env.DB.prepare(
-        "DELETE FROM lectures WHERE data_hora < datetime('now', '-5 days')"
+        "DELETE FROM lectures WHERE data_hora < datetime('now', '-40 days')"
     ).run();
 
     const logsResult = await env.DB.prepare(
