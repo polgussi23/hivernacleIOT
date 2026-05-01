@@ -13,7 +13,7 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.2.0";
+const char* FIRMWARE_VERSION = "0.2.1";
 
 const char* DEVICE_ID      = "H_POL";
 const char* API_TOKEN      = "uySJYyqvyiLaoKEXDudoplp8tPsv1HVXT3W8U5mXHFz1iEDYw5IfHQV0Whr4XWCS";
@@ -29,7 +29,7 @@ const int PIN_HEATER   = 33;
 // Canals PWM (LEDC). Fan i calefactor van per PWM; bomba i llums on/off.
 const int PWM_CH_FAN    = 0;
 const int PWM_CH_HEATER = 1;
-const int PWM_FREQ      = 5000;  // 5 kHz
+const int PWM_FREQ      = 25000;  // 5 kHz
 const int PWM_BITS      = 8;     // 0-255
 
 // Sensor d'humitat del sòl (analògic)
