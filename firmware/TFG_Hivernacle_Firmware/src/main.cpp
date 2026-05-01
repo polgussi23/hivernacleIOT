@@ -13,7 +13,7 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.2.1";
+const char* FIRMWARE_VERSION = "0.2.2";
 
 const char* DEVICE_ID      = "H_POL";
 const char* API_TOKEN      = "uySJYyqvyiLaoKEXDudoplp8tPsv1HVXT3W8U5mXHFz1iEDYw5IfHQV0Whr4XWCS";
@@ -430,8 +430,7 @@ void runControl() {
   if (isDayTime) {
     if (!prevState.light && currentLux < 250) {
       newLight = true;
-    } else if (prevState.light && currentLux > 800) {
-      // ATENCIÓ: ajusta el 800 als lux reals dels teus LEDs per evitar bucle
+    } else if (prevState.light && currentLux > 350) {
       newLight = false;
     }
   } else {
