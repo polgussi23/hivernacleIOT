@@ -338,8 +338,8 @@ export default {
         if (url.pathname === '/api/check-update') {
             const reqData = await request.json();
             const clientVersion = reqData.current_version;
-            const LATEST_VERSION = "0.2.2";
-            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.2.2/firmware.bin";
+            const LATEST_VERSION = "0.2.3";
+            const BIN_URL = "https://github.com/polgussi23/hivernacleIOT/releases/download/v0.2.3/firmware.bin";
 
             if (clientVersion !== LATEST_VERSION) {
                 return new Response(
