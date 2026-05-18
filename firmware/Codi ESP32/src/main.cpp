@@ -13,7 +13,7 @@
 
 #define WDT_TIMEOUT 15
 
-const char* FIRMWARE_VERSION = "0.2.2";
+const char* FIRMWARE_VERSION = "0.2.3";
 
 const char* DEVICE_ID      = "H_POL";
 const char* API_TOKEN      = "uySJYyqvyiLaoKEXDudoplp8tPsv1HVXT3W8U5mXHFz1iEDYw5IfHQV0Whr4XWCS";
@@ -430,7 +430,7 @@ void runControl() {
   if (isDayTime) {
     if (!prevState.light && currentLux < 250) {
       newLight = true;
-    } else if (prevState.light && currentLux > 350) {
+    } else if (prevState.light && currentLux > 375) {
       newLight = false;
     }
   } else {
